@@ -13,10 +13,10 @@ import "../interfaces/legacy/IStrategyHelper.sol";
 import "../interfaces/IPancakeRouter02.sol";
 import "../interfaces/legacy/IStrategyLegacy.sol";
 
-interface IPresale {
-    function totalBalance() view external returns(uint);
-    function flipToken() view external returns(address);
-}
+// interface IPresale {
+//     function totalBalance() view external returns(uint);
+//     function flipToken() view external returns(address);
+// }
 
 contract BunnyPool is IStrategyLegacy, RewardsDistributionRecipient, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
@@ -25,7 +25,7 @@ contract BunnyPool is IStrategyLegacy, RewardsDistributionRecipient, ReentrancyG
     /* ========== STATE VARIABLES ========== */
 
     IBEP20 public rewardsToken; // bunny/bnb flip
-    IBEP20 public constant stakingToken = IBEP20(0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51);   // bunny
+    IBEP20 public immutable stakingToken;   // ruby
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
     uint256 public rewardsDuration = 90 days;
@@ -41,11 +41,11 @@ contract BunnyPool is IStrategyLegacy, RewardsDistributionRecipient, ReentrancyG
     mapping(address => bool) private _stakePermission;
 
     /* ========== PRESALE ============== */
-    address private constant presaleContract = 0x641414e2a04c8f8EbBf49eD47cc87dccbA42BF07;
-    address private constant deadAddress = 0x000000000000000000000000000000000000dEaD;
-    mapping(address => uint256) private _presaleBalance;
-    uint private constant timestamp2HoursAfterPresaleEnds = 1605585600 + (2 hours);
-    uint private constant timestamp90DaysAfterPresaleEnds = 1605585600 + (90 days);
+    // address private constant presaleContract = 0x641414e2a04c8f8EbBf49eD47cc87dccbA42BF07;
+    // address private constant deadAddress = 0x000000000000000000000000000000000000dEaD;
+    // mapping(address => uint256) private _presaleBalance;
+    // uint private constant timestamp2HoursAfterPresaleEnds = 1605585600 + (2 hours);
+    // uint private constant timestamp90DaysAfterPresaleEnds = 1605585600 + (90 days);
 
     /* ========== BUNNY HELPER ========= */
 
@@ -54,13 +54,14 @@ contract BunnyPool is IStrategyLegacy, RewardsDistributionRecipient, ReentrancyG
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor() public {
+    constructor(address _stakingToken) public {
+        stakingToken = IBEP20(_stakingToken);
         rewardsDistribution = msg.sender;
 
         _stakePermission[msg.sender] = true;
-        _stakePermission[presaleContract] = true;
+        // _stakePermission[presaleContract] = true;
 
-        stakingToken.safeApprove(address(ROUTER_V1_DEPRECATED), uint(- 1));
+        IBEP20(_stakingToken).safeApprove(address(ROUTER_V1_DEPRECATED), uint(- 1));
     }
 
     /* ========== VIEWS ========== */
@@ -77,35 +78,35 @@ contract BunnyPool is IStrategyLegacy, RewardsDistributionRecipient, ReentrancyG
         return _balances[account];
     }
 
-    function presaleBalanceOf(address account) external view returns(uint256) {
-        return _presaleBalance[account];
-    }
+    // function presaleBalanceOf(address account) external view returns(uint256) {
+    //     return _presaleBalance[account];
+    // }
 
     function principalOf(address account) override external view returns (uint256) {
         return _balances[account];
     }
 
     function withdrawableBalanceOf(address account) override public view returns (uint) {
-        if (block.timestamp > timestamp90DaysAfterPresaleEnds) {
-            // unlock all presale bunny after 90 days of presale
+        // if (block.timestamp > timestamp90DaysAfterPresaleEnds) {
+        //     // unlock all presale bunny after 90 days of presale
             return _balances[account];
-        } else if (block.timestamp < timestamp2HoursAfterPresaleEnds) {
-            return _balances[account].sub(_presaleBalance[account]);
-        } else {
-            uint soldInPresale = IPresale(presaleContract).totalBalance().div(2).mul(3); // mint 150% of presale for making flip token
-            uint bunnySupply = stakingToken.totalSupply().sub(stakingToken.balanceOf(deadAddress));
-            if (soldInPresale >= bunnySupply) {
-                return _balances[account].sub(_presaleBalance[account]);
-            }
-            uint bunnyNewMint = bunnySupply.sub(soldInPresale);
-            if (bunnyNewMint >= soldInPresale) {
-                return _balances[account];
-            }
+        // } else if (block.timestamp < timestamp2HoursAfterPresaleEnds) {
+        //     return _balances[account].sub(_presaleBalance[account]);
+        // } else {
+        //     uint soldInPresale = IPresale(presaleContract).totalBalance().div(2).mul(3); // mint 150% of presale for making flip token
+        //     uint bunnySupply = stakingToken.totalSupply().sub(stakingToken.balanceOf(deadAddress));
+        //     if (soldInPresale >= bunnySupply) {
+        //         return _balances[account].sub(_presaleBalance[account]);
+        //     }
+        //     uint bunnyNewMint = bunnySupply.sub(soldInPresale);
+        //     if (bunnyNewMint >= soldInPresale) {
+        //         return _balances[account];
+        //     }
 
-            uint lockedRatio = (soldInPresale.sub(bunnyNewMint)).mul(1e18).div(soldInPresale);
-            uint lockedBalance = _presaleBalance[account].mul(lockedRatio).div(1e18);
-            return _balances[account].sub(lockedBalance);
-        }
+        //     uint lockedRatio = (soldInPresale.sub(bunnyNewMint)).mul(1e18).div(soldInPresale);
+        //     uint lockedBalance = _presaleBalance[account].mul(lockedRatio).div(1e18);
+        //     return _balances[account].sub(lockedBalance);
+        // }
     }
 
     function profitOf(address account) override public view returns (uint _usd, uint _bunny, uint _bnb) {
@@ -261,9 +262,9 @@ contract BunnyPool is IStrategyLegacy, RewardsDistributionRecipient, ReentrancyG
 
     function stakeTo(uint256 amount, address _to) external canStakeTo {
         _deposit(amount, _to);
-        if (msg.sender == presaleContract) {
-            _presaleBalance[_to] = _presaleBalance[_to].add(amount);
-        }
+        // if (msg.sender == presaleContract) {
+        //     _presaleBalance[_to] = _presaleBalance[_to].add(amount);
+        // }
     }
 
     function notifyRewardAmount(uint256 reward) override external onlyRewardsDistribution updateReward(address(0)) {

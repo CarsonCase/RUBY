@@ -50,8 +50,8 @@ contract BunnyMinterV2 is IBunnyMinterV2, OwnableUpgradeable {
     /* ========== CONSTANTS ============= */
 
     address public constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address public constant BUNNY = 0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51;
-    address public constant BUNNY_POOL = 0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D;
+    address public immutable BUNNY;
+    address public immutable BUNNY_POOL;
 
     address public constant TREASURY = 0x0989091F27708Bc92ea4cA60073e03592B94C0eE;
     address private constant TIMELOCK = 0x85c9162A51E03078bdCd08D4232Bab13ed414cC3;
@@ -89,6 +89,11 @@ contract BunnyMinterV2 is IBunnyMinterV2, OwnableUpgradeable {
     modifier onlyBunnyChef {
         require(msg.sender == bunnyChef, "BunnyMinterV2: caller not the bunny chef");
         _;
+    }
+
+    constructor(address _bunny, address _bunnyPool)public{
+        BUNNY = _bunny;
+        BUNNY_POOL = _bunnyPool;
     }
 
     /* ========== EVENTS ========== */
