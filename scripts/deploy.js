@@ -47,6 +47,10 @@ async function main() {
 
   console.log("Bunny pool deployed to:", flip.address);
 
+  //Bunny bnb requres the Lp token
+  //But can be deployed as is
+  
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere
