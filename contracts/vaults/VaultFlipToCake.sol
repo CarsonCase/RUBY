@@ -44,7 +44,7 @@ import {PoolConstant} from "../library/PoolConstant.sol";
 
 import "../interfaces/IStrategy.sol";
 import "../interfaces/IMasterChef.sol";
-import "../interfaces/IBunnyMinter.sol";
+import "../interfaces/IRubyMinter.sol";
 
 import "./VaultController.sol";
 

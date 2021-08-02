@@ -88,7 +88,7 @@ contract PriceCalculatorETH is IPriceCalculator, OwnableUpgradeable {
         return uint(price).mul(1e10);
     }
 
-    function priceOfBunny() view external override returns (uint) {
+    function priceOfRuby() view external override returns (uint) {
         return 0;
     }
 

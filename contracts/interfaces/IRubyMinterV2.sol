@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.12;
 
-interface IBunnyMinterV2 {
+interface IRubyMinterV2 {
     function isMinter(address) view external returns(bool);
-    function amountBunnyToMint(uint bnbProfit) view external returns(uint);
-    function amountBunnyToMintForBunnyBNB(uint amount, uint duration) view external returns(uint);
+    function amountRubyToMint(uint bnbProfit) view external returns(uint);
+    function amountRubyToMintForRubyBNB(uint amount, uint duration) view external returns(uint);
     function withdrawalFee(uint amount, uint depositedAt) view external returns(uint);
     function performanceFee(uint profit) view external returns(uint);
     function mintFor(address flip, uint _withdrawalFee, uint _performanceFee, address to, uint depositedAt) external payable;
@@ -17,6 +17,6 @@ interface IBunnyMinterV2 {
 
     // V2 functions
     function mint(uint amount) external;
-    function safeBunnyTransfer(address to, uint256 amount) external;
+    function safeRubyTransfer(address to, uint256 amount) external;
     function mintGov(uint amount) external;
 }

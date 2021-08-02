@@ -113,7 +113,7 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
         return uint(price).mul(1e10);
     }
 
-    function priceOfBunny() view public override returns (uint) {
+    function priceOfRuby() view public override returns (uint) {
         (, uint price) = valueOfAsset(BUNNY, 1e18);
         return price;
     }
