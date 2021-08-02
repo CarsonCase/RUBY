@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -579,7 +579,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         updateVenusFactors();
         uint borrowable = safeVenus.safeBorrowAmount(address(this));
-        while (!paused && compound > 0 && borrowable > 1 szabo) {
+        while (!paused && compound > 0 && borrowable > 1) {
             if (borrowable == 0 || collateralRatio >= collateralRatioLimit) {
                 return;
             }
