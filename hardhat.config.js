@@ -4,9 +4,9 @@
 require("@nomiclabs/hardhat-waffle");
 module.exports = {
   solidity: {
-    version: '0.6.12',
+    version: '0.8.4',
+    docker: false,
     settings: {
-      evmVersion: 'istanbul',
       optimizer: {
         enabled: true,
         runs: 200

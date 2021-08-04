@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -40,8 +40,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import "../interfaces/IStrategy.sol";
-import "../interfaces/IBunnyMinter.sol";
-import "../interfaces/IBunnyChef.sol";
+import "../interfaces/IRubyMinter.sol";
+import "../interfaces/IRubyChef.sol";
 import "./VaultController.sol";
 import {PoolConstant} from "../library/PoolConstant.sol";
 import "../interfaces/legacy/IStrategyLegacy.sol";
@@ -235,9 +235,9 @@ contract VaultBunnyMaximizer is VaultController, IStrategy, ReentrancyGuardUpgra
         VaultController.setMinter(newMinter);
     }
 
-    function setBunnyChef(IBunnyChef _chef) public override onlyOwner {
+    function setBunnyChef(IRubyChef _chef) public override onlyOwner {
         require(address(_bunnyChef) == address(0), "VaultBunny: setBunnyChef only once");
-        VaultController.setBunnyChef(IBunnyChef(_chef));
+        VaultController.setBunnyChef(IRubyChef(_chef));
     }
 
     /* ========== PRIVATE FUNCTIONS ========== */

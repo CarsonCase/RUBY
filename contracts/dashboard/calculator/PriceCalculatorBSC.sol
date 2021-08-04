@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -113,7 +113,7 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
         return uint(price).mul(1e10);
     }
 
-    function priceOfBunny() view public override returns (uint) {
+    function priceOfRuby() view public override returns (uint) {
         (, uint price) = valueOfAsset(BUNNY, 1e18);
         return price;
     }

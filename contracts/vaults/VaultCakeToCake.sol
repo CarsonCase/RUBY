@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -38,7 +38,7 @@ import "@openzeppelin/contracts/math/Math.sol";
 
 import "../interfaces/IStrategy.sol";
 import "../interfaces/IMasterChef.sol";
-import "../interfaces/IBunnyMinter.sol";
+import "../interfaces/IRubyMinter.sol";
 import "./VaultController.sol";
 import {PoolConstant} from "../library/PoolConstant.sol";
 

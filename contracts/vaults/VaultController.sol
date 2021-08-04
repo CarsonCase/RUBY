@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -40,8 +40,8 @@ import "../interfaces/IPancakeRouter02.sol";
 import "../interfaces/IPancakePair.sol";
 import "../interfaces/IStrategy.sol";
 import "../interfaces/IMasterChef.sol";
-import "../interfaces/IBunnyMinterV2.sol";
-import "../interfaces/IBunnyChef.sol";
+import "../interfaces/IRubyMinterV2.sol";
+import "../interfaces/IRubyChef.sol";
 import "../library/PausableUpgradeable.sol";
 import "../library/WhitelistUpgradeable.sol";
 
@@ -56,8 +56,8 @@ abstract contract VaultController is IVaultController, PausableUpgradeable, Whit
 
     address public keeper;
     IBEP20 internal _stakingToken;
-    IBunnyMinterV2 internal _minter;
-    IBunnyChef internal _bunnyChef;
+    IRubyMinterV2 internal _minter;
+    IRubyChef internal _bunnyChef;
 
     /* ========== VARIABLE GAP ========== */
 
@@ -112,7 +112,7 @@ abstract contract VaultController is IVaultController, PausableUpgradeable, Whit
 
     function setMinter(address newMinter) virtual public onlyOwner {
         // can zero
-        _minter = IBunnyMinterV2(newMinter);
+        _minter = IRubyMinterV2(newMinter);
         if (newMinter != address(0)) {
             require(newMinter == BUNNY.getOwner(), 'VaultController: not bunny minter');
             _stakingToken.safeApprove(newMinter, 0);
@@ -120,7 +120,7 @@ abstract contract VaultController is IVaultController, PausableUpgradeable, Whit
         }
     }
 
-    function setBunnyChef(IBunnyChef newBunnyChef) virtual public onlyOwner {
+    function setBunnyChef(IRubyChef newBunnyChef) virtual public onlyOwner {
         require(address(_bunnyChef) == address(0), 'VaultController: setBunnyChef only once');
         _bunnyChef = newBunnyChef;
     }

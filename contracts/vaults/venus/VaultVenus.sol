@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -243,9 +243,9 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     //        VaultController.setMinter(newMinter);
     //    }
     //
-    //    function setBunnyChef(IBunnyChef newChef) public override onlyOwner {
+    //    function setBunnyChef(IRubyChef newChef) public override onlyOwner {
     //        require(address(_bunnyChef) == address(0), "VaultVenus: bunnyChef exists");
-    //        VaultController.setBunnyChef(IBunnyChef(newChef));
+    //        VaultController.setBunnyChef(IRubyChef(newChef));
     //    }
     //
     //    function setCollateralFactors(uint _collateralRatioFactor, uint _collateralDepth) external onlyOwner {
@@ -420,7 +420,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         uint shares = _shares[msg.sender];
         if (address(_bunnyChef) != address(0)) {
             _bunnyChef.notifyWithdrawn(msg.sender, shares);
-            uint bunnyAmount = _bunnyChef.safeBunnyTransfer(msg.sender);
+            uint bunnyAmount = _bunnyChef.safeRubyTransfer(msg.sender);
             emit BunnyPaid(msg.sender, bunnyAmount, 0);
         }
 
@@ -509,7 +509,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         amount = Math.min(amount, available);
         if (address(_bunnyChef) != address(0)) {
-            uint bunnyAmount = _bunnyChef.safeBunnyTransfer(msg.sender);
+            uint bunnyAmount = _bunnyChef.safeRubyTransfer(msg.sender);
             emit BunnyPaid(msg.sender, bunnyAmount, 0);
         }
 
@@ -579,7 +579,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         updateVenusFactors();
         uint borrowable = safeVenus.safeBorrowAmount(address(this));
-        while (!paused && compound > 0 && borrowable > 1 szabo) {
+        while (!paused && compound > 0 && borrowable > 1) {
             if (borrowable == 0 || collateralRatio >= collateralRatioLimit) {
                 return;
             }

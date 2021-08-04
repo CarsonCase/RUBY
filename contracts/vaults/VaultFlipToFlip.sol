@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -41,7 +41,7 @@ import "../interfaces/IPancakePair.sol";
 import "../interfaces/IPancakeFactory.sol";
 import "../interfaces/IStrategy.sol";
 import "../interfaces/IMasterChef.sol";
-import "../interfaces/IBunnyMinter.sol";
+import "../interfaces/IRubyMinter.sol";
 
 import "../zap/ZapBSC.sol";
 import "./VaultController.sol";

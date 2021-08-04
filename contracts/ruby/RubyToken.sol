@@ -1,42 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
-
-/*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
-
-*
-* MIT License
-* ===========
-*
-* Copyright (c) 2020 BunnyFinance
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-*/
+pragma solidity ^0.8.4;
 
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
 
-
-// BunnyToken with Governance.
-contract BunnyToken is BEP20('Bunny Token', 'BUNNY') {
+// Ruby Token with Governance.
+contract RubyToken is BEP20('Ruby Token', 'RUBY') {
     // @dev Creates `_amount` token to `_to`. Must only be called by the owner (MasterChef).
     function mint(address _to, uint256 _amount) public onlyOwner {
         _mint(_to, _amount);
@@ -146,9 +114,9 @@ contract BunnyToken is BEP20('Bunny Token', 'BUNNY') {
         );
 
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "BUNNY::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "BUNNY::delegateBySig: invalid nonce");
-        require(now <= expiry, "BUNNY::delegateBySig: signature expired");
+        require(signatory != address(0), "RUBY::delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "RUBY::delegateBySig: invalid nonce");
+        require(now <= expiry, "RUBY::delegateBySig: signature expired");
         return _delegate(signatory, delegatee);
     }
 
@@ -178,7 +146,7 @@ contract BunnyToken is BEP20('Bunny Token', 'BUNNY') {
     view
     returns (uint256)
     {
-        require(blockNumber < block.number, "BUNNY::getPriorVotes: not yet determined");
+        require(blockNumber < block.number, "RUBY::getPriorVotes: not yet determined");
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -215,7 +183,7 @@ contract BunnyToken is BEP20('Bunny Token', 'BUNNY') {
     internal
     {
         address currentDelegate = _delegates[delegator];
-        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying BUNNYs (not scaled);
+        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying RUBYs (not scaled);
         _delegates[delegator] = delegatee;
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
@@ -251,7 +219,7 @@ contract BunnyToken is BEP20('Bunny Token', 'BUNNY') {
     )
     internal
     {
-        uint32 blockNumber = safe32(block.number, "BUNNY::_writeCheckpoint: block number exceeds 32 bits");
+        uint32 blockNumber = safe32(block.number, "RUBY::_writeCheckpoint: block number exceeds 32 bits");
 
         if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
             checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;

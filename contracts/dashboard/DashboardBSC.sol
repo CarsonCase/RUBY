@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
 /*
@@ -37,8 +37,8 @@ import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../interfaces/IStrategy.sol";
-import "../interfaces/IBunnyMinter.sol";
-import "../interfaces/IBunnyChef.sol";
+import "../interfaces/IRubyMinter.sol";
+import "../interfaces/IRubyChef.sol";
 import "../interfaces/IPriceCalculator.sol";
 
 import "../vaults/BunnyPool.sol";
@@ -57,7 +57,7 @@ contract DashboardBSC is OwnableUpgradeable {
     address public constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
     address public constant VaultCakeToCake = 0xEDfcB78e73f7bA6aD2D829bf5D462a0924da28eD;
 
-    IBunnyChef private constant bunnyChef = IBunnyChef(0x40e31876c4322bd033BAb028474665B12c4d04CE);
+    IRubyChef private constant bunnyChef = IRubyChef(0x40e31876c4322bd033BAb028474665B12c4d04CE);
     BunnyPool private constant bunnyPool = BunnyPool(0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D);
     VaultRelayer private constant relayer = VaultRelayer(0x34D3fF7f0476B38f990e9b8571aCAE60f6321C03);
 
@@ -116,7 +116,7 @@ contract DashboardBSC is OwnableUpgradeable {
         }
         else if (poolType == PoolConstant.PoolTypes.Bunny) {
             // profit as bunny
-            profit = bunnyChef.pendingBunny(pool, account);
+            profit = bunnyChef.pendingRuby(pool, account);
             (profitInBNB,) = priceCalculator.valueOfAsset(BUNNY, profit);
         }
         else if (poolType == PoolConstant.PoolTypes.CakeStake || poolType == PoolConstant.PoolTypes.FlipToFlip || poolType == PoolConstant.PoolTypes.Venus || poolType == PoolConstant.PoolTypes.BunnyToBunny) {
@@ -142,11 +142,11 @@ contract DashboardBSC is OwnableUpgradeable {
             IStrategy strategy = IStrategy(pool);
             if (strategy.minter() != address(0)) {
                 profit = profit.mul(70).div(100);
-                bunny = IBunnyMinter(strategy.minter()).amountBunnyToMint(profitInBNB.mul(30).div(100));
+                bunny = IRubyMinter(strategy.minter()).amountRubyToMint(profitInBNB.mul(30).div(100));
             }
 
             if (strategy.bunnyChef() != address(0)) {
-                bunny = bunny.add(bunnyChef.pendingBunny(pool, account));
+                bunny = bunny.add(bunnyChef.pendingRuby(pool, account));
             }
         }
     }
@@ -191,7 +191,7 @@ contract DashboardBSC is OwnableUpgradeable {
 
         PoolConstant.PoolTypes poolType = poolTypeOf(pool);
         if (poolType != PoolConstant.PoolTypes.BunnyStake_deprecated && strategy.minter() != address(0)) {
-            IBunnyMinter minter = IBunnyMinter(strategy.minter());
+            IRubyMinter minter = IRubyMinter(strategy.minter());
             poolInfo.depositedAt = strategy.depositedAt(account);
             poolInfo.feeDuration = minter.WITHDRAWAL_FEE_FREE_PERIOD();
             poolInfo.feePercentage = minter.WITHDRAWAL_FEE();
@@ -253,13 +253,13 @@ contract DashboardBSC is OwnableUpgradeable {
             IStrategy strategy = IStrategy(pool);
             if (strategy.minter() != address(0)) {
                 profitInBNB = profitInBNB.mul(70).div(100);
-                profitInBUNNY = IBunnyMinter(strategy.minter()).amountBunnyToMint(profitInBNB.mul(30).div(100));
+                profitInBUNNY = IRubyMinter(strategy.minter()).amountRubyToMint(profitInBNB.mul(30).div(100));
             }
 
             if ((poolTypes[pool] == PoolConstant.PoolTypes.Bunny || poolTypes[pool] == PoolConstant.PoolTypes.BunnyBNB
             || poolTypes[pool] == PoolConstant.PoolTypes.FlipToFlip)
                 && strategy.bunnyChef() != address(0)) {
-                profitInBUNNY = profitInBUNNY.add(bunnyChef.pendingBunny(pool, account));
+                profitInBUNNY = profitInBUNNY.add(bunnyChef.pendingRuby(pool, account));
             }
         }
 
