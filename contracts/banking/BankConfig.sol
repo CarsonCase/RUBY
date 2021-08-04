@@ -45,7 +45,7 @@ contract BankConfig is IBankConfig, Ownable {
     /// Interest rate model
     InterestModel public interestModel;
 
-    constructor(uint _reservePoolBps, InterestModel _interestModel) public {
+    constructor(uint _reservePoolBps, InterestModel _interestModel) {
         setParams(_reservePoolBps, _interestModel);
     }
 

@@ -105,9 +105,9 @@ abstract contract RubyMinterV2 is IRubyMinterV2, OwnableUpgradeable {
     /* ========== INITIALIZER ========== */
 
     function initialize() external initializer {
-        WITHDRAWAL_FEE_FREE_PERIOD = 3 days;
-        WITHDRAWAL_FEE = 50;
-        PERFORMANCE_FEE = 3000;
+        WITHDRAWAL_FEE_FREE_PERIOD = 3 days; // here is setted the 72h time
+        WITHDRAWAL_FEE = 50; // 50 == 0.5%
+        PERFORMANCE_FEE = 3000; // 3000 == 30% 
 
         _deprecated_rubyPerProfitBNB = 5e18;
         _deprecated_rubyPerRubyBNBFlip = 6e18;

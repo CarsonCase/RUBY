@@ -34,7 +34,7 @@ pragma experimental ABIEncoderV2;
 */
 
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
-import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {PoolConstant} from "../library/PoolConstant.sol";
 import "../interfaces/IPancakePair.sol";
