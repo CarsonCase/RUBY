@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 library SortitionSumTreeFactory {
 

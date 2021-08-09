@@ -48,7 +48,7 @@ abstract contract Pausable is Ownable {
         _;
     }
 
-    constructor() internal {
+    constructor() {
         require(owner() != address(0), "Owner must be set");
     }
 
@@ -59,7 +59,7 @@ abstract contract Pausable is Ownable {
 
         paused = _paused;
         if (paused) {
-            lastPauseTime = now;
+            lastPauseTime = block.timestamp;
         }
 
         emit PauseChanged(paused);
