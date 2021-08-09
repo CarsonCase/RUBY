@@ -41,11 +41,11 @@ import "../interfaces/IVaultCollateral.sol";
 
 import "./calculator/PriceCalculatorETH.sol";
 
-
 contract DashboardETH is OwnableUpgradeable {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
-    PriceCalculatorETH public constant priceCalculator = PriceCalculatorETH(0xB73106688fdfee99578731aDb18c9689462B415a);
+    PriceCalculatorETH public constant priceCalculator =
+        PriceCalculatorETH(0xB73106688fdfee99578731aDb18c9689462B415a);
 
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -57,19 +57,29 @@ contract DashboardETH is OwnableUpgradeable {
 
     /* ========== TVL Calculation ========== */
 
-    function tvlOfPool(address pool) public view returns (uint tvl) {
+    function tvlOfPool(address pool) public view returns (uint256 tvl) {
         IVaultCollateral strategy = IVaultCollateral(pool);
-        (, tvl) = priceCalculator.valueOfAsset(strategy.stakingToken(), strategy.balance());
+        (, tvl) = priceCalculator.valueOfAsset(
+            strategy.stakingToken(),
+            strategy.balance()
+        );
     }
 
     /* ========== Pool Information ========== */
 
-    function infoOfPool(address pool, address account) public view returns (PoolConstant.PoolInfo memory) {
+    function infoOfPool(address pool, address account)
+        public
+        view
+        returns (PoolConstant.PoolInfo memory)
+    {
         IVaultCollateral strategy = IVaultCollateral(pool);
         PoolConstant.PoolInfo memory poolInfo;
 
-        uint collateral = strategy.collateralOf(account);
-        (, uint collateralInUSD) = priceCalculator.valueOfAsset(strategy.stakingToken(), collateral);
+        uint256 collateral = strategy.collateralOf(account);
+        (, uint256 collateralInUSD) = priceCalculator.valueOfAsset(
+            strategy.stakingToken(),
+            collateral
+        );
 
         poolInfo.pool = pool;
         poolInfo.balance = collateralInUSD;
@@ -84,9 +94,15 @@ contract DashboardETH is OwnableUpgradeable {
         return poolInfo;
     }
 
-    function poolsOf(address account, address[] memory pools) public view returns (PoolConstant.PoolInfo[] memory) {
-        PoolConstant.PoolInfo[] memory results = new PoolConstant.PoolInfo[](pools.length);
-        for (uint i = 0; i < pools.length; i++) {
+    function poolsOf(address account, address[] memory pools)
+        public
+        view
+        returns (PoolConstant.PoolInfo[] memory)
+    {
+        PoolConstant.PoolInfo[] memory results = new PoolConstant.PoolInfo[](
+            pools.length
+        );
+        for (uint256 i = 0; i < pools.length; i++) {
             results[i] = infoOfPool(pools[i], account);
         }
         return results;
@@ -94,19 +110,36 @@ contract DashboardETH is OwnableUpgradeable {
 
     /* ========== Portfolio Calculation ========== */
 
-    function portfolioOfPoolInUSD(address pool, address account) internal view returns (uint) {
+    function portfolioOfPoolInUSD(address pool, address account)
+        internal
+        view
+        returns (uint256)
+    {
         IVaultCollateral strategy = IVaultCollateral(pool);
         address stakingToken = strategy.stakingToken();
 
-        (, uint collateralInUSD) = priceCalculator.valueOfAsset(stakingToken, strategy.collateralOf(account));
-        (, uint availableInUSD) = priceCalculator.valueOfAsset(stakingToken, strategy.availableOf(account));
-        (, uint profitInUSD) = priceCalculator.valueOfAsset(WETH, strategy.realizedInETH(account));
+        (, uint256 collateralInUSD) = priceCalculator.valueOfAsset(
+            stakingToken,
+            strategy.collateralOf(account)
+        );
+        (, uint256 availableInUSD) = priceCalculator.valueOfAsset(
+            stakingToken,
+            strategy.availableOf(account)
+        );
+        (, uint256 profitInUSD) = priceCalculator.valueOfAsset(
+            WETH,
+            strategy.realizedInETH(account)
+        );
         return collateralInUSD.add(availableInUSD).add(profitInUSD);
     }
 
-    function portfolioOf(address account, address[] memory pools) public view returns (uint deposits) {
+    function portfolioOf(address account, address[] memory pools)
+        public
+        view
+        returns (uint256 deposits)
+    {
         deposits = 0;
-        for (uint i = 0; i < pools.length; i++) {
+        for (uint256 i = 0; i < pools.length; i++) {
             deposits = deposits.add(portfolioOfPoolInUSD(pools[i], account));
         }
     }

@@ -36,21 +36,26 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-
 abstract contract PausableUpgradeable is OwnableUpgradeable {
-    uint public lastPauseTime;
+    uint256 public lastPauseTime;
     bool public paused;
 
     event PauseChanged(bool isPaused);
 
-    modifier notPaused {
-        require(!paused, "PausableUpgradeable: cannot be performed while the contract is paused");
+    modifier notPaused() {
+        require(
+            !paused,
+            "PausableUpgradeable: cannot be performed while the contract is paused"
+        );
         _;
     }
 
     function __PausableUpgradeable_init() internal initializer {
         __Ownable_init();
-        require(owner() != address(0), "PausableUpgradeable: owner must be set");
+        require(
+            owner() != address(0),
+            "PausableUpgradeable: owner must be set"
+        );
     }
 
     function setPaused(bool _paused) external onlyOwner {
@@ -60,10 +65,11 @@ abstract contract PausableUpgradeable is OwnableUpgradeable {
 
         paused = _paused;
         if (paused) {
-            lastPauseTime = now;
+            lastPauseTime = block.timestamp;
         }
 
         emit PauseChanged(paused);
     }
+
     uint256[50] private __gap;
 }

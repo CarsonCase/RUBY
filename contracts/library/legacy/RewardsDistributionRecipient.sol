@@ -34,7 +34,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
+import "../../library/bep20/Ownable.sol";
 
 abstract contract RewardsDistributionRecipient is Ownable {
     address public rewardsDistribution;
@@ -44,9 +44,12 @@ abstract contract RewardsDistributionRecipient is Ownable {
         _;
     }
 
-    function notifyRewardAmount(uint256 reward) virtual external;
+    function notifyRewardAmount(uint256 reward) external virtual;
 
-    function setRewardsDistribution(address _rewardsDistribution) external onlyOwner {
+    function setRewardsDistribution(address _rewardsDistribution)
+        external
+        onlyOwner
+    {
         rewardsDistribution = _rewardsDistribution;
     }
 }

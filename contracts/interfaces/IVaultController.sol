@@ -34,6 +34,8 @@ pragma solidity ^0.8.4;
 
 interface IVaultController {
     function minter() external view returns (address);
-    function bunnyChef() external view returns (address);
+
+    function rubiChef() external view returns (address);
+
     function stakingToken() external view returns (address);
 }

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
-pragma experimental ABIEncoderV2;
 
 /*
   ___                      _   _
@@ -33,30 +32,22 @@ pragma experimental ABIEncoderV2;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-interface IVaultCollateral {
-    function WITHDRAWAL_FEE_PERIOD() external view returns (uint256);
+interface IRubiMinterV2 {
+    function isMinter(address) view external returns(bool);
+    function amountRubiToMint(uint bnbProfit) view external returns(uint);
+    function amountRubiToMintForRubiBNB(uint amount, uint duration) view external returns(uint);
+    function withdrawalFee(uint amount, uint depositedAt) view external returns(uint);
+    function performanceFee(uint profit) view external returns(uint);
+    function mintFor(address flip, uint _withdrawalFee, uint _performanceFee, address to, uint depositedAt) external payable;
+    function mintForV2(address flip, uint _withdrawalFee, uint _performanceFee, address to, uint depositedAt) external payable;
 
-    function WITHDRAWAL_FEE_UNIT() external view returns (uint256);
+    function WITHDRAWAL_FEE_FREE_PERIOD() view external returns(uint);
+    function WITHDRAWAL_FEE() view external returns(uint);
 
-    function WITHDRAWAL_FEE() external view returns (uint256);
+    function setMinter(address minter, bool canMint) external;
 
-    function stakingToken() external view returns (address);
-
-    function collateralValueMin() external view returns (uint256);
-
-    function balance() external view returns (uint256);
-
-    function availableOf(address account) external view returns (uint256);
-
-    function collateralOf(address account) external view returns (uint256);
-
-    function realizedInETH(address account) external view returns (uint256);
-
-    function depositedAt(address account) external view returns (uint256);
-
-    function addCollateral(uint256 amount) external;
-
-    function addCollateralETH() external payable;
-
-    function removeCollateral() external;
+    // V2 functions
+    function mint(uint amount) external;
+    function safeRubiTransfer(address to, uint256 amount) external;
+    function mintGov(uint amount) external;
 }

@@ -1,17 +1,19 @@
-/*
-   ____            __   __        __   _
-  / __/__ __ ___  / /_ / /  ___  / /_ (_)__ __
- _\ \ / // // _ \/ __// _ \/ -_)/ __// / \ \ /
-/___/ \_, //_//_/\__//_//_/\__/ \__//_/ /_\_\
-     /___/
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+pragma experimental ABIEncoderV2;
 
-* Docs: https://docs.synthetix.io/
-*
+/*
+  ___                      _   _
+ | _ )_  _ _ _  _ _ _  _  | | | |
+ | _ \ || | ' \| ' \ || | |_| |_|
+ |___/\_,_|_||_|_||_\_, | (_) (_)
+                    |__/
+
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 Synthetix
+* Copyright (c) 2020 BunnyFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -31,39 +33,12 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+import {PotConstant} from "../library/PotConstant.sol";
 
-import "../../library/bep20/Ownable.sol";
+interface IRubiPot {
 
-abstract contract Pausable is Ownable {
-    uint256 public lastPauseTime;
-    bool public paused;
+    function potInfoOf(address _account) external view returns (PotConstant.PotInfo memory, PotConstant.PotInfoMe memory);
 
-    event PauseChanged(bool isPaused);
-
-    modifier notPaused() {
-        require(
-            !paused,
-            "This action cannot be performed while the contract is paused"
-        );
-        _;
-    }
-
-    constructor() {
-        require(owner() != address(0), "Owner must be set");
-    }
-
-    function setPaused(bool _paused) external onlyOwner {
-        if (_paused == paused) {
-            return;
-        }
-
-        paused = _paused;
-        if (paused) {
-            lastPauseTime = block.timestamp;
-        }
-
-        emit PauseChanged(paused);
-    }
+    function deposit(uint amount) external;
+    function withdrawAll(uint amount) external;
 }

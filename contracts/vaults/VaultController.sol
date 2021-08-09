@@ -33,31 +33,35 @@ pragma experimental ABIEncoderV2;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
-import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
+import "../library/bep20/SafeBEP20.sol";
+import "../library/bep20/BEP20.sol";
 
 import "../interfaces/IPancakeRouter02.sol";
 import "../interfaces/IPancakePair.sol";
 import "../interfaces/IStrategy.sol";
 import "../interfaces/IMasterChef.sol";
-import "../interfaces/IRubyMinterV2.sol";
-import "../interfaces/IRubyChef.sol";
+import "../interfaces/IRubiMinterV2.sol";
+import "../interfaces/IRubiChef.sol";
 import "../library/PausableUpgradeable.sol";
 import "../library/WhitelistUpgradeable.sol";
 
-
-abstract contract VaultController is IVaultController, PausableUpgradeable, WhitelistUpgradeable {
+abstract contract VaultController is
+    IVaultController,
+    PausableUpgradeable,
+    WhitelistUpgradeable
+{
     using SafeBEP20 for IBEP20;
 
     /* ========== CONSTANT VARIABLES ========== */
-    BEP20 private constant BUNNY = BEP20(0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51);
+    BEP20 private constant RUBI =
+        BEP20(0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51);
 
     /* ========== STATE VARIABLES ========== */
 
     address public keeper;
     IBEP20 internal _stakingToken;
-    IRubyMinterV2 internal _minter;
-    IRubyChef internal _bunnyChef;
+    IRubiMinterV2 internal _minter;
+    IRubiChef internal _rubiChef;
 
     /* ========== VARIABLE GAP ========== */
 
@@ -65,13 +69,15 @@ abstract contract VaultController is IVaultController, PausableUpgradeable, Whit
 
     /* ========== Event ========== */
 
-    event Recovered(address token, uint amount);
-
+    event Recovered(address token, uint256 amount);
 
     /* ========== MODIFIERS ========== */
 
-    modifier onlyKeeper {
-        require(msg.sender == keeper || msg.sender == owner(), 'VaultController: caller is not the owner or keeper');
+    modifier onlyKeeper() {
+        require(
+            msg.sender == keeper || msg.sender == owner(),
+            "VaultController: caller is not the owner or keeper"
+        );
         _;
     }
 
@@ -92,11 +98,12 @@ abstract contract VaultController is IVaultController, PausableUpgradeable, Whit
     }
 
     function canMint() internal view returns (bool) {
-        return address(_minter) != address(0) && _minter.isMinter(address(this));
+        return
+            address(_minter) != address(0) && _minter.isMinter(address(this));
     }
 
-    function bunnyChef() external view override returns (address) {
-        return address(_bunnyChef);
+    function rubiChef() external view override returns (address) {
+        return address(_rubiChef);
     }
 
     function stakingToken() external view override returns (address) {
@@ -106,29 +113,45 @@ abstract contract VaultController is IVaultController, PausableUpgradeable, Whit
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function setKeeper(address _keeper) external onlyKeeper {
-        require(_keeper != address(0), 'VaultController: invalid keeper address');
+        require(
+            _keeper != address(0),
+            "VaultController: invalid keeper address"
+        );
         keeper = _keeper;
     }
 
-    function setMinter(address newMinter) virtual public onlyOwner {
+    function setMinter(address newMinter) public virtual onlyOwner {
         // can zero
-        _minter = IRubyMinterV2(newMinter);
+        _minter = IRubiMinterV2(newMinter);
         if (newMinter != address(0)) {
-            require(newMinter == BUNNY.getOwner(), 'VaultController: not bunny minter');
+            require(
+                newMinter == RUBI.getOwner(),
+                "VaultController: not rubi minter"
+            );
             _stakingToken.safeApprove(newMinter, 0);
-            _stakingToken.safeApprove(newMinter, uint(- 1));
+            _stakingToken.safeApprove(newMinter, uint256(1));
         }
     }
 
-    function setBunnyChef(IRubyChef newBunnyChef) virtual public onlyOwner {
-        require(address(_bunnyChef) == address(0), 'VaultController: setBunnyChef only once');
-        _bunnyChef = newBunnyChef;
+    function setRubiChef(IRubiChef newRubiChef) public virtual onlyOwner {
+        require(
+            address(_rubiChef) == address(0),
+            "VaultController: setRubiChef only once"
+        );
+        _rubiChef = newRubiChef;
     }
 
     /* ========== SALVAGE PURPOSE ONLY ========== */
 
-    function recoverToken(address _token, uint amount) virtual external onlyOwner {
-        require(_token != address(_stakingToken), 'VaultController: cannot recover underlying token');
+    function recoverToken(address _token, uint256 amount)
+        external
+        virtual
+        onlyOwner
+    {
+        require(
+            _token != address(_stakingToken),
+            "VaultController: cannot recover underlying token"
+        );
         IBEP20(_token).safeTransfer(owner(), amount);
 
         emit Recovered(_token, amount);

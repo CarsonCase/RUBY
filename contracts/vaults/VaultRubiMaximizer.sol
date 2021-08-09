@@ -13,7 +13,7 @@ pragma experimental ABIEncoderV2;
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 RubiFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -33,22 +33,27 @@ pragma experimental ABIEncoderV2;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-import "../library/bep20/SafeBEP20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
+import "../library/bep20/SafeBEP20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-import {PoolConstant} from "../library/PoolConstant.sol";
-import "../interfaces/IPancakePair.sol";
-import "../interfaces/IPancakeFactory.sol";
 import "../interfaces/IStrategy.sol";
-import "../interfaces/IMasterChef.sol";
 import "../interfaces/IRubiMinter.sol";
-
-import "../zap/ZapBSC.sol";
+import "../interfaces/IRubiChef.sol";
 import "./VaultController.sol";
+import {PoolConstant} from "../library/PoolConstant.sol";
+import "../interfaces/legacy/IStrategyLegacy.sol";
+import "../zap/ZapBSC.sol";
 
-contract VaultFlipToFlip is VaultController, IStrategy {
-    using SafeBEP20 for IBEP20;
+contract VaultRubiMaximizer is
+    VaultController,
+    IStrategy,
+    ReentrancyGuardUpgradeable
+{
     using SafeMath for uint256;
+    using SafeBEP20 for IBEP20;
 
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(
@@ -69,62 +74,49 @@ contract VaultFlipToFlip is VaultController, IStrategy {
     event Harvested(uint256 profit);
     /* ========== CONSTANTS ============= */
 
-    IBEP20 private constant CAKE =
-        IBEP20(0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82);
-    IBEP20 private constant WBNB =
-        IBEP20(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c);
-    IMasterChef private constant CAKE_MASTER_CHEF =
-        IMasterChef(0x73feaa1eE314F8c655E354234017bE2193C9E24E);
-    PoolConstant.PoolTypes public constant override poolType =
-        PoolConstant.PoolTypes.FlipToFlip;
+    address private constant RUBI = 0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51;
+    address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
-    ZapBSC public constant zapBSC =
+    PoolConstant.PoolTypes public constant override poolType =
+        PoolConstant.PoolTypes.RubiToRubi;
+    address private constant RUBI_POOL =
+        0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D;
+    address private constant TREASURY =
+        0x85c9162A51E03078bdCd08D4232Bab13ed414cC3;
+
+    ZapBSC public constant zap =
         ZapBSC(payable(payable(0xdC2bBB0D33E0e7Dea9F5b98F46EDBaC823586a0C)));
 
     uint256 private constant DUST = 1000;
 
+    uint256 public constant override pid = 9999;
+
     /* ========== STATE VARIABLES ========== */
 
-    uint256 public override pid;
-
-    address private _token0;
-    address private _token1;
-
-    uint256 public totalShares;
+    uint256 private totalShares;
     mapping(address => uint256) private _shares;
     mapping(address => uint256) private _principal;
     mapping(address => uint256) private _depositedAt;
 
-    uint256 public cakeHarvested;
-
-    /* ========== MODIFIER ========== */
-
-    modifier updateCakeHarvested() {
-        uint256 before = CAKE.balanceOf(address(this));
-        _;
-        uint256 _after = CAKE.balanceOf(address(this));
-        cakeHarvested = cakeHarvested.add(_after).sub(before);
-    }
-
     /* ========== INITIALIZER ========== */
 
-    function initialize(uint256 _pid, address _token) external initializer {
-        __VaultController_init(IBEP20(_token));
+    function initialize() external initializer {
+        __VaultController_init(IBEP20(RUBI));
+        __ReentrancyGuard_init();
 
-        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint256(1));
-        pid = _pid;
-
-        CAKE.safeApprove(address(zapBSC), uint256(1));
+        _stakingToken.approve(RUBI_POOL, uint256(1));
+        IBEP20(WBNB).approve(address(zap), uint256(1));
+        setMinter(0x8cB88701790F650F273c8BB2Cc4c5f439cd65219);
     }
 
-    /* ========== VIEW FUNCTIONS ========== */
+    /* ========== VIEWS ========== */
 
     function totalSupply() external view override returns (uint256) {
         return totalShares;
     }
 
-    function balance() public view override returns (uint256 amount) {
-        (amount, ) = CAKE_MASTER_CHEF.userInfo(pid, address(this));
+    function balance() public view override returns (uint256) {
+        return IStrategyLegacy(RUBI_POOL).balanceOf(address(this));
     }
 
     function balanceOf(address account) public view override returns (uint256) {
@@ -172,7 +164,7 @@ contract VaultFlipToFlip is VaultController, IStrategy {
     }
 
     function rewardsToken() external view override returns (address) {
-        return address(_stakingToken);
+        return RUBI;
     }
 
     function priceShare() external view override returns (uint256) {
@@ -182,8 +174,8 @@ contract VaultFlipToFlip is VaultController, IStrategy {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function deposit(uint256 _amount) public override {
-        _depositTo(_amount, msg.sender);
+    function deposit(uint256 amount) public override {
+        _deposit(amount, msg.sender);
     }
 
     function depositAll() external override {
@@ -200,47 +192,30 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         delete _principal[msg.sender];
         delete _depositedAt[msg.sender];
 
-        amount = _withdrawTokenWithCorrection(amount);
-        uint256 profit = amount > principal ? amount.sub(principal) : 0;
+        IStrategyLegacy(RUBI_POOL).withdraw(amount);
 
-        uint256 withdrawalFee = canMint()
-            ? _minter.withdrawalFee(principal, depositTimestamp)
-            : 0;
-        uint256 performanceFee = canMint() ? _minter.performanceFee(profit) : 0;
-        if (withdrawalFee.add(performanceFee) > DUST) {
-            _minter.mintForV2(
-                address(_stakingToken),
-                withdrawalFee,
-                performanceFee,
-                msg.sender,
-                depositTimestamp
-            );
-
-            if (performanceFee > 0) {
-                emit ProfitPaid(msg.sender, profit, performanceFee);
-            }
-            amount = amount.sub(withdrawalFee).sub(performanceFee);
+        uint256 withdrawalFee = _minter.withdrawalFee(
+            principal,
+            depositTimestamp
+        );
+        if (withdrawalFee > 0) {
+            _stakingToken.safeTransfer(TREASURY, withdrawalFee);
+            amount = amount.sub(withdrawalFee);
         }
 
         _stakingToken.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount, withdrawalFee);
     }
 
-    function harvest() external override onlyKeeper {
-        _harvest();
+    function harvest() public override onlyKeeper {
+        IStrategyLegacy(RUBI_POOL).getReward();
 
-        uint256 before = _stakingToken.balanceOf(address(this));
-        zapBSC.zapInToken(address(CAKE), cakeHarvested, address(_stakingToken));
-        uint256 harvested = _stakingToken.balanceOf(address(this)).sub(before);
-
-        CAKE_MASTER_CHEF.deposit(pid, harvested);
+        uint256 before = IBEP20(RUBI).balanceOf(address(this));
+        zap.zapInToken(WBNB, IBEP20(WBNB).balanceOf(address(this)), RUBI);
+        uint256 harvested = IBEP20(RUBI).balanceOf(address(this)).sub(before);
         emit Harvested(harvested);
 
-        cakeHarvested = 0;
-    }
-
-    function _harvest() private updateCakeHarvested {
-        CAKE_MASTER_CHEF.withdraw(pid, 0);
+        IStrategyLegacy(RUBI_POOL).deposit(harvested);
     }
 
     function withdraw(uint256 shares) external override onlyWhitelisted {
@@ -248,7 +223,8 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         totalShares = totalShares.sub(shares);
         _shares[msg.sender] = _shares[msg.sender].sub(shares);
 
-        amount = _withdrawTokenWithCorrection(amount);
+        IStrategyLegacy(RUBI_POOL).withdraw(amount);
+
         _stakingToken.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount, 0);
     }
@@ -264,19 +240,12 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         _shares[msg.sender] = _shares[msg.sender].sub(shares);
         _principal[msg.sender] = _principal[msg.sender].sub(amount);
 
-        amount = _withdrawTokenWithCorrection(amount);
+        IStrategyLegacy(RUBI_POOL).withdraw(amount);
+
         uint256 depositTimestamp = _depositedAt[msg.sender];
-        uint256 withdrawalFee = canMint()
-            ? _minter.withdrawalFee(amount, depositTimestamp)
-            : 0;
-        if (withdrawalFee > DUST) {
-            _minter.mintForV2(
-                address(_stakingToken),
-                withdrawalFee,
-                0,
-                msg.sender,
-                depositTimestamp
-            );
+        uint256 withdrawalFee = _minter.withdrawalFee(amount, depositTimestamp);
+        if (withdrawalFee > 0) {
+            _stakingToken.safeTransfer(TREASURY, withdrawalFee);
             amount = amount.sub(withdrawalFee);
         }
 
@@ -284,8 +253,7 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         emit Withdrawn(msg.sender, amount, withdrawalFee);
     }
 
-    // @dev profits only (underlying + bunny) + no withdraw fee + perf fee
-    function getReward() external override {
+    function getReward() public override nonReentrant {
         uint256 amount = earned(msg.sender);
         uint256 shares = Math.min(
             amount.mul(totalShares).div(balance()),
@@ -295,60 +263,10 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         _shares[msg.sender] = _shares[msg.sender].sub(shares);
         _cleanupIfDustShares();
 
-        amount = _withdrawTokenWithCorrection(amount);
-        uint256 depositTimestamp = _depositedAt[msg.sender];
-        uint256 performanceFee = canMint() ? _minter.performanceFee(amount) : 0;
-        if (performanceFee > DUST) {
-            _minter.mintForV2(
-                address(_stakingToken),
-                0,
-                performanceFee,
-                msg.sender,
-                depositTimestamp
-            );
-            amount = amount.sub(performanceFee);
-        }
+        IStrategyLegacy(RUBI_POOL).withdraw(amount);
 
         _stakingToken.safeTransfer(msg.sender, amount);
-        emit ProfitPaid(msg.sender, amount, performanceFee);
-    }
-
-    /* ========== PRIVATE FUNCTIONS ========== */
-
-    function _depositTo(uint256 _amount, address _to)
-        private
-        notPaused
-        updateCakeHarvested
-    {
-        uint256 _pool = balance();
-        uint256 _before = _stakingToken.balanceOf(address(this));
-        _stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
-        uint256 _after = _stakingToken.balanceOf(address(this));
-        _amount = _after.sub(_before); // Additional check for deflationary tokens
-        uint256 shares = 0;
-        if (totalShares == 0) {
-            shares = _amount;
-        } else {
-            shares = (_amount.mul(totalShares)).div(_pool);
-        }
-
-        totalShares = totalShares.add(shares);
-        _shares[_to] = _shares[_to].add(shares);
-        _principal[_to] = _principal[_to].add(_amount);
-        _depositedAt[_to] = block.timestamp;
-
-        CAKE_MASTER_CHEF.deposit(pid, _amount);
-        emit Deposited(_to, _amount);
-    }
-
-    function _withdrawTokenWithCorrection(uint256 amount)
-        private
-        updateCakeHarvested
-        returns (uint256)
-    {
-        uint256 before = _stakingToken.balanceOf(address(this));
-        CAKE_MASTER_CHEF.withdraw(pid, amount);
-        return _stakingToken.balanceOf(address(this)).sub(before);
+        emit ProfitPaid(msg.sender, amount, 0);
     }
 
     function _cleanupIfDustShares() private {
@@ -359,23 +277,50 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         }
     }
 
+    /* ========== RESTRICTED FUNCTIONS ========== */
+
+    function setMinter(address newMinter) public override onlyOwner {
+        VaultController.setMinter(newMinter);
+    }
+
+    function setRubiChef(IRubiChef _chef) public override onlyOwner {
+        require(
+            address(_rubiChef) == address(0),
+            "VaultRubi: setRubiChef only once"
+        );
+        VaultController.setRubiChef(IRubiChef(_chef));
+    }
+
+    /* ========== PRIVATE FUNCTIONS ========== */
+
+    function _deposit(uint256 _amount, address _to)
+        private
+        nonReentrant
+        notPaused
+    {
+        uint256 _pool = balance();
+        _stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
+        uint256 shares = totalShares == 0
+            ? _amount
+            : (_amount.mul(totalShares)).div(_pool);
+
+        totalShares = totalShares.add(shares);
+        _shares[_to] = _shares[_to].add(shares);
+        _principal[_to] = _principal[_to].add(_amount);
+        _depositedAt[_to] = block.timestamp;
+
+        IStrategyLegacy(RUBI_POOL).deposit(_amount);
+        emit Deposited(_to, _amount);
+    }
+
     /* ========== SALVAGE PURPOSE ONLY ========== */
 
-    // @dev stakingToken must not remain balance in this contract. So dev should salvage staking token transferred by mistake.
-    function recoverToken(address token, uint256 amount)
+    function recoverToken(address tokenAddress, uint256 tokenAmount)
         external
         override
         onlyOwner
     {
-        if (token == address(CAKE)) {
-            uint256 cakeBalance = CAKE.balanceOf(address(this));
-            require(
-                amount <= cakeBalance.sub(cakeHarvested),
-                "VaultFlipToFlip: cannot recover lp's harvested cake"
-            );
-        }
-
-        IBEP20(token).safeTransfer(owner(), amount);
-        emit Recovered(token, amount);
+        IBEP20(tokenAddress).safeTransfer(owner(), tokenAmount);
+        emit Recovered(tokenAddress, tokenAmount);
     }
 }

@@ -35,48 +35,76 @@ pragma experimental ABIEncoderV2;
 
 interface IStrategyLegacy {
     struct Profit {
-        uint usd;
-        uint bunny;
-        uint bnb;
+        uint256 usd;
+        uint256 rubi;
+        uint256 bnb;
     }
 
     struct APY {
-        uint usd;
-        uint bunny;
-        uint bnb;
+        uint256 usd;
+        uint256 rubi;
+        uint256 bnb;
     }
 
     struct UserInfo {
-        uint balance;
-        uint principal;
-        uint available;
+        uint256 balance;
+        uint256 principal;
+        uint256 available;
         Profit profit;
-        uint poolTVL;
+        uint256 poolTVL;
         APY poolAPY;
     }
 
-    function deposit(uint _amount) external;
+    function deposit(uint256 _amount) external;
+
     function depositAll() external;
-    function withdraw(uint256 _amount) external;    // BUNNY STAKING POOL ONLY
+
+    function withdraw(uint256 _amount) external; // rubi STAKING POOL ONLY
+
     function withdrawAll() external;
-    function getReward() external;                  // BUNNY STAKING POOL ONLY
+
+    function getReward() external; // rubi STAKING POOL ONLY
+
     function harvest() external;
 
-    function balance() external view returns (uint);
-    function balanceOf(address account) external view returns (uint);
-    function principalOf(address account) external view returns (uint);
-    function withdrawableBalanceOf(address account) external view returns (uint);   // BUNNY STAKING POOL ONLY
-    function profitOf(address account) external view returns (uint _usd, uint _bunny, uint _bnb);
-//    function earned(address account) external view returns (uint);
-    function tvl() external view returns (uint);    // in USD
-    function apy() external view returns (uint _usd, uint _bunny, uint _bnb);
+    function balance() external view returns (uint256);
+
+    function balanceOf(address account) external view returns (uint256);
+
+    function principalOf(address account) external view returns (uint256);
+
+    function withdrawableBalanceOf(address account)
+        external
+        view
+        returns (uint256); // BUNNY STAKING POOL ONLY
+
+    function profitOf(address account)
+        external
+        view
+        returns (
+            uint256 _usd,
+            uint256 _rubi,
+            uint256 _bnb
+        );
+
+    //    function earned(address account) external view returns (uint);
+    function tvl() external view returns (uint256); // in USD
+
+    function apy()
+        external
+        view
+        returns (
+            uint256 _usd,
+            uint256 _rubi,
+            uint256 _bnb
+        );
 
     /* ========== Strategy Information ========== */
-//    function pid() external view returns (uint);
-//    function poolType() external view returns (PoolTypes);
-//    function isMinter() external view returns (bool, address);
-//    function getDepositedAt(address account) external view returns (uint);
-//    function getRewardsToken() external view returns (address);
+    //    function pid() external view returns (uint);
+    //    function poolType() external view returns (PoolTypes);
+    //    function isMinter() external view returns (bool, address);
+    //    function getDepositedAt(address account) external view returns (uint);
+    //    function getRewardsToken() external view returns (address);
 
     function info(address account) external view returns (UserInfo memory);
 }

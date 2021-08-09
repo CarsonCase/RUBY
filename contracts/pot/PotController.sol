@@ -13,7 +13,7 @@ pragma experimental ABIEncoderV2;
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 RubyFinance
+* Copyright (c) 2020 BunnyFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,23 +40,27 @@ import "../library/SortitionSumTreeFactory.sol";
 import "../interfaces/IPotController.sol";
 import "../interfaces/IRNGenerator.sol";
 
-
-contract PotController is IPotController, PausableUpgradeable, WhitelistUpgradeable {
+contract PotController is
+    IPotController,
+    PausableUpgradeable,
+    WhitelistUpgradeable
+{
     using SortitionSumTreeFactory for SortitionSumTreeFactory.SortitionSumTrees;
 
     /* ========== CONSTANT ========== */
 
-    uint constant private MAX_TREE_LEAVES = 5;
-    IRNGenerator constant private RNGenerator = IRNGenerator(0x2Eb45a1017e9E0793E05aaF0796298d9b871eCad);
+    uint256 private constant MAX_TREE_LEAVES = 5;
+    IRNGenerator private constant RNGenerator =
+        IRNGenerator(0x2Eb45a1017e9E0793E05aaF0796298d9b871eCad);
 
     /* ========== STATE VARIABLES ========== */
 
     SortitionSumTreeFactory.SortitionSumTrees private _sortitionSumTree;
-    bytes32 private _requestId;  // random number
+    bytes32 private _requestId; // random number
 
-    uint internal _randomness;
-    uint public potId;
-    uint public startedAt;
+    uint256 internal _randomness;
+    uint256 public potId;
+    uint256 public startedAt;
 
     /* ========== MODIFIERS ========== */
 
@@ -71,25 +75,43 @@ contract PotController is IPotController, PausableUpgradeable, WhitelistUpgradea
         _sortitionSumTree.createTree(key, MAX_TREE_LEAVES);
     }
 
-    function getWeight(bytes32 key, bytes32 _ID) internal view returns (uint) {
+    function getWeight(bytes32 key, bytes32 _ID)
+        internal
+        view
+        returns (uint256)
+    {
         return _sortitionSumTree.stakeOf(key, _ID);
     }
 
-    function setWeight(bytes32 key, uint weight, bytes32 _ID) internal {
+    function setWeight(
+        bytes32 key,
+        uint256 weight,
+        bytes32 _ID
+    ) internal {
         _sortitionSumTree.set(key, weight, _ID);
     }
 
-    function draw(bytes32 key, uint randomNumber) internal returns (address) {
-        return address(uint(_sortitionSumTree.draw(key, randomNumber)));
+    function draw(bytes32 key, uint256 randomNumber)
+        internal
+        returns (address)
+    {
+        return
+            address(
+                uint160(uint256(_sortitionSumTree.draw(key, randomNumber)))
+            );
     }
 
-    function getRandomNumber(uint weight) internal {
+    function getRandomNumber(uint256 weight) internal {
         _requestId = RNGenerator.getRandomNumber(potId, weight);
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */
 
-    function numbersDrawn(uint _potId, bytes32 requestId, uint randomness) override external onlyRandomGenerator {
+    function numbersDrawn(
+        uint256 _potId,
+        bytes32 requestId,
+        uint256 randomness
+    ) external override onlyRandomGenerator {
         if (_requestId == requestId && potId == _potId) {
             _randomness = randomness;
         }

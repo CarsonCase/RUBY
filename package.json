@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "compile": "npx oz compile --solc-version 0.8.4",
+    "compile": "npx oz compile --solc-version 0.8.4 --evm-version istanbul" ,
     "test": "mocha --exit --recursive"
   },
   "files": [
@@ -19,7 +19,6 @@
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contract-loader": "^0.6.1",
     "@openzeppelin/contracts": "^4.2.0",
-    "@openzeppelin/contracts-upgradeable": "^3.3.0",
     "@openzeppelin/hardhat-upgrades": "^1.4.3",
     "@openzeppelin/test-environment": "^0.1.4",
     "@openzeppelin/test-helpers": "^0.5.6",
@@ -49,6 +48,7 @@
   },
   "dependencies": {
     "@chainlink/contracts": "^0.2.1",
+    "@openzeppelin/contracts-upgradeable": "^4.2.0",
     "@truffle/hdwallet-provider": "^1.0.40",
     "bignumber.js": "^9.0.1",
     "btoa": "^1.2.1",

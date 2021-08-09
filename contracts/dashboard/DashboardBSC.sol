@@ -13,7 +13,7 @@ pragma experimental ABIEncoderV2;
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 RubiFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,34 +37,38 @@ import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../interfaces/IStrategy.sol";
-import "../interfaces/IRubyMinter.sol";
-import "../interfaces/IRubyChef.sol";
+import "../interfaces/IRubiMinter.sol";
+import "../interfaces/IRubiChef.sol";
 import "../interfaces/IPriceCalculator.sol";
 
-import "../vaults/BunnyPool.sol";
 import "../vaults/venus/VaultVenus.sol";
 import "../vaults/relay/VaultRelayer.sol";
-
+import {RubiPool} from "../vaults/RubiPool.sol";
 
 contract DashboardBSC is OwnableUpgradeable {
-    using SafeMath for uint;
-    using SafeDecimal for uint;
+    using SafeMath for uint256;
+    using SafeDecimal for uint256;
 
-    IPriceCalculator public constant priceCalculator = IPriceCalculator(0xF5BF8A9249e3cc4cB684E3f23db9669323d4FB7d);
+    IPriceCalculator public constant priceCalculator =
+        IPriceCalculator(0xF5BF8A9249e3cc4cB684E3f23db9669323d4FB7d);
 
     address public constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address public constant BUNNY = 0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51;
+    address public constant RUBI = 0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51;
     address public constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
-    address public constant VaultCakeToCake = 0xEDfcB78e73f7bA6aD2D829bf5D462a0924da28eD;
+    address public constant VaultCakeToCake =
+        0xEDfcB78e73f7bA6aD2D829bf5D462a0924da28eD;
 
-    IRubyChef private constant bunnyChef = IRubyChef(0x40e31876c4322bd033BAb028474665B12c4d04CE);
-    BunnyPool private constant bunnyPool = BunnyPool(0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D);
-    VaultRelayer private constant relayer = VaultRelayer(0x34D3fF7f0476B38f990e9b8571aCAE60f6321C03);
+    IRubiChef private constant rubiChef =
+        IRubiChef(0x40e31876c4322bd033BAb028474665B12c4d04CE);
+    RubiPool private constant rubiPool =
+        RubiPool(0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D);
+    VaultRelayer private constant relayer =
+        VaultRelayer(payable(0x34D3fF7f0476B38f990e9b8571aCAE60f6321C03));
 
     /* ========== STATE VARIABLES ========== */
 
     mapping(address => PoolConstant.PoolTypes) public poolTypes;
-    mapping(address => uint) public pancakePoolIds;
+    mapping(address => uint256) public pancakePoolIds;
     mapping(address => bool) public perfExemptions;
 
     /* ========== INITIALIZER ========== */
@@ -75,11 +79,14 @@ contract DashboardBSC is OwnableUpgradeable {
 
     /* ========== Restricted Operation ========== */
 
-    function setPoolType(address pool, PoolConstant.PoolTypes poolType) public onlyOwner {
+    function setPoolType(address pool, PoolConstant.PoolTypes poolType)
+        public
+        onlyOwner
+    {
         poolTypes[pool] = poolType;
     }
 
-    function setPancakePoolId(address pool, uint pid) public onlyOwner {
+    function setPancakePoolId(address pool, uint256 pid) public onlyOwner {
         pancakePoolIds[pool] = pid;
     }
 
@@ -89,13 +96,21 @@ contract DashboardBSC is OwnableUpgradeable {
 
     /* ========== View Functions ========== */
 
-    function poolTypeOf(address pool) public view returns (PoolConstant.PoolTypes) {
+    function poolTypeOf(address pool)
+        public
+        view
+        returns (PoolConstant.PoolTypes)
+    {
         return poolTypes[pool];
     }
 
     /* ========== Utilization Calculation ========== */
 
-    function utilizationOfPool(address pool) public view returns (uint liquidity, uint utilized) {
+    function utilizationOfPool(address pool)
+        public
+        view
+        returns (uint256 liquidity, uint256 utilized)
+    {
         if (poolTypes[pool] == PoolConstant.PoolTypes.Venus) {
             return VaultVenus(payable(pool)).getUtilizationInfo();
         }
@@ -104,67 +119,105 @@ contract DashboardBSC is OwnableUpgradeable {
 
     /* ========== Profit Calculation ========== */
 
-    function calculateProfit(address pool, address account) public view returns (uint profit, uint profitInBNB) {
+    function calculateProfit(address pool, address account)
+        public
+        view
+        returns (uint256 profit, uint256 profitInBNB)
+    {
         PoolConstant.PoolTypes poolType = poolTypes[pool];
         profit = 0;
         profitInBNB = 0;
 
-        if (poolType == PoolConstant.PoolTypes.BunnyStake_deprecated) {
+        if (poolType == PoolConstant.PoolTypes.RubiStake_deprecated) {
             // profit as bnb
-            (profit,) = priceCalculator.valueOfAsset(address(bunnyPool.rewardsToken()), bunnyPool.earned(account));
+            (profit, ) = priceCalculator.valueOfAsset(
+                address(rubiPool.rewardsToken()),
+                rubiPool.earned(account)
+            );
             profitInBNB = profit;
-        }
-        else if (poolType == PoolConstant.PoolTypes.Bunny) {
-            // profit as bunny
-            profit = bunnyChef.pendingRuby(pool, account);
-            (profitInBNB,) = priceCalculator.valueOfAsset(BUNNY, profit);
-        }
-        else if (poolType == PoolConstant.PoolTypes.CakeStake || poolType == PoolConstant.PoolTypes.FlipToFlip || poolType == PoolConstant.PoolTypes.Venus || poolType == PoolConstant.PoolTypes.BunnyToBunny) {
+        } else if (poolType == PoolConstant.PoolTypes.Rubi) {
+            // profit as rubi
+            profit = rubiChef.pendingRubi(pool, account);
+            (profitInBNB, ) = priceCalculator.valueOfAsset(RUBI, profit);
+        } else if (
+            poolType == PoolConstant.PoolTypes.CakeStake ||
+            poolType == PoolConstant.PoolTypes.FlipToFlip ||
+            poolType == PoolConstant.PoolTypes.Venus ||
+            poolType == PoolConstant.PoolTypes.RubiToRubi
+        ) {
             // profit as underlying
             IStrategy strategy = IStrategy(pool);
             profit = strategy.earned(account);
-            (profitInBNB,) = priceCalculator.valueOfAsset(strategy.stakingToken(), profit);
-        }
-        else if (poolType == PoolConstant.PoolTypes.FlipToCake || poolType == PoolConstant.PoolTypes.BunnyBNB) {
+            (profitInBNB, ) = priceCalculator.valueOfAsset(
+                strategy.stakingToken(),
+                profit
+            );
+        } else if (
+            poolType == PoolConstant.PoolTypes.FlipToCake ||
+            poolType == PoolConstant.PoolTypes.RubiBNB
+        ) {
             // profit as cake
             IStrategy strategy = IStrategy(pool);
-            profit = strategy.earned(account).mul(IStrategy(strategy.rewardsToken()).priceShare()).div(1e18);
-            (profitInBNB,) = priceCalculator.valueOfAsset(CAKE, profit);
+            profit = strategy
+                .earned(account)
+                .mul(IStrategy(strategy.rewardsToken()).priceShare())
+                .div(1e18);
+            (profitInBNB, ) = priceCalculator.valueOfAsset(CAKE, profit);
         }
     }
 
-    function profitOfPool(address pool, address account) public view returns (uint profit, uint bunny) {
-        (uint profitCalculated, uint profitInBNB) = calculateProfit(pool, account);
+    function profitOfPool(address pool, address account)
+        public
+        view
+        returns (uint256 profit, uint256 rubi)
+    {
+        (uint256 profitCalculated, uint256 profitInBNB) = calculateProfit(
+            pool,
+            account
+        );
         profit = profitCalculated;
-        bunny = 0;
+        rubi = 0;
 
         if (!perfExemptions[pool]) {
             IStrategy strategy = IStrategy(pool);
             if (strategy.minter() != address(0)) {
                 profit = profit.mul(70).div(100);
-                bunny = IRubyMinter(strategy.minter()).amountRubyToMint(profitInBNB.mul(30).div(100));
+                rubi = IRubiMinter(strategy.minter()).amountRubiToMint(
+                    profitInBNB.mul(30).div(100)
+                );
             }
 
-            if (strategy.bunnyChef() != address(0)) {
-                bunny = bunny.add(bunnyChef.pendingRuby(pool, account));
+            if (strategy.rubiChef() != address(0)) {
+                rubi = rubi.add(rubiChef.pendingRubi(pool, account));
             }
         }
     }
 
     /* ========== TVL Calculation ========== */
 
-    function tvlOfPool(address pool) public view returns (uint tvl) {
-        if (poolTypes[pool] == PoolConstant.PoolTypes.BunnyStake_deprecated) {
-            (, tvl) = priceCalculator.valueOfAsset(address(bunnyPool.stakingToken()), bunnyPool.balance());
-        }
-        else {
+    function tvlOfPool(address pool) public view returns (uint256 tvl) {
+        if (poolTypes[pool] == PoolConstant.PoolTypes.RubiStake_deprecated) {
+            (, tvl) = priceCalculator.valueOfAsset(
+                address(rubiPool.stakingToken()),
+                rubiPool.balance()
+            );
+        } else {
             IStrategy strategy = IStrategy(pool);
-            (, tvl) = priceCalculator.valueOfAsset(strategy.stakingToken(), strategy.balance());
+            (, tvl) = priceCalculator.valueOfAsset(
+                strategy.stakingToken(),
+                strategy.balance()
+            );
 
             if (strategy.rewardsToken() == VaultCakeToCake) {
                 IStrategy rewardsToken = IStrategy(strategy.rewardsToken());
-                uint rewardsInCake = rewardsToken.balanceOf(pool).mul(rewardsToken.priceShare()).div(1e18);
-                (, uint rewardsInUSD) = priceCalculator.valueOfAsset(address(CAKE), rewardsInCake);
+                uint256 rewardsInCake = rewardsToken
+                    .balanceOf(pool)
+                    .mul(rewardsToken.priceShare())
+                    .div(1e18);
+                (, uint256 rewardsInUSD) = priceCalculator.valueOfAsset(
+                    address(CAKE),
+                    rewardsInCake
+                );
                 tvl = tvl.add(rewardsInUSD);
             }
         }
@@ -172,12 +225,16 @@ contract DashboardBSC is OwnableUpgradeable {
 
     /* ========== Pool Information ========== */
 
-    function infoOfPool(address pool, address account) public view returns (PoolConstant.PoolInfo memory) {
+    function infoOfPool(address pool, address account)
+        public
+        view
+        returns (PoolConstant.PoolInfo memory)
+    {
         PoolConstant.PoolInfo memory poolInfo;
 
         IStrategy strategy = IStrategy(pool);
-        (uint pBASE, uint pBUNNY) = profitOfPool(pool, account);
-        (uint liquidity, uint utilized) = utilizationOfPool(pool);
+        (uint256 pBASE, uint256 pRUBI) = profitOfPool(pool, account);
+        (uint256 liquidity, uint256 utilized) = utilizationOfPool(pool);
 
         poolInfo.pool = pool;
         poolInfo.balance = strategy.balanceOf(account);
@@ -187,11 +244,14 @@ contract DashboardBSC is OwnableUpgradeable {
         poolInfo.utilized = utilized;
         poolInfo.liquidity = liquidity;
         poolInfo.pBASE = pBASE;
-        poolInfo.pBUNNY = pBUNNY;
+        poolInfo.pRUBI = pRUBI;
 
         PoolConstant.PoolTypes poolType = poolTypeOf(pool);
-        if (poolType != PoolConstant.PoolTypes.BunnyStake_deprecated && strategy.minter() != address(0)) {
-            IRubyMinter minter = IRubyMinter(strategy.minter());
+        if (
+            poolType != PoolConstant.PoolTypes.RubiStake_deprecated &&
+            strategy.minter() != address(0)
+        ) {
+            IRubiMinter minter = IRubiMinter(strategy.minter());
             poolInfo.depositedAt = strategy.depositedAt(account);
             poolInfo.feeDuration = minter.WITHDRAWAL_FEE_FREE_PERIOD();
             poolInfo.feePercentage = minter.WITHDRAWAL_FEE();
@@ -201,9 +261,15 @@ contract DashboardBSC is OwnableUpgradeable {
         return poolInfo;
     }
 
-    function poolsOf(address account, address[] memory pools) public view returns (PoolConstant.PoolInfo[] memory) {
-        PoolConstant.PoolInfo[] memory results = new PoolConstant.PoolInfo[](pools.length);
-        for (uint i = 0; i < pools.length; i++) {
+    function poolsOf(address account, address[] memory pools)
+        public
+        view
+        returns (PoolConstant.PoolInfo[] memory)
+    {
+        PoolConstant.PoolInfo[] memory results = new PoolConstant.PoolInfo[](
+            pools.length
+        );
+        for (uint256 i = 0; i < pools.length; i++) {
             results[i] = infoOfPool(pools[i], account);
         }
         return results;
@@ -211,7 +277,11 @@ contract DashboardBSC is OwnableUpgradeable {
 
     /* ========== Relay Information ========== */
 
-    function infoOfRelay(address pool, address account) public view returns (PoolConstant.RelayInfo memory) {
+    function infoOfRelay(address pool, address account)
+        public
+        view
+        returns (PoolConstant.RelayInfo memory)
+    {
         PoolConstant.RelayInfo memory relayInfo;
         relayInfo.pool = pool;
         relayInfo.balanceInUSD = relayer.balanceInUSD(pool, account);
@@ -220,9 +290,15 @@ contract DashboardBSC is OwnableUpgradeable {
         return relayInfo;
     }
 
-    function relaysOf(address account, address[] memory pools) public view returns (PoolConstant.RelayInfo[] memory) {
-        PoolConstant.RelayInfo[] memory results = new PoolConstant.RelayInfo[](pools.length);
-        for (uint i = 0; i < pools.length; i++) {
+    function relaysOf(address account, address[] memory pools)
+        public
+        view
+        returns (PoolConstant.RelayInfo[] memory)
+    {
+        PoolConstant.RelayInfo[] memory results = new PoolConstant.RelayInfo[](
+            pools.length
+        );
+        for (uint256 i = 0; i < pools.length; i++) {
             results[i] = infoOfRelay(pools[i], account);
         }
         return results;
@@ -230,47 +306,75 @@ contract DashboardBSC is OwnableUpgradeable {
 
     /* ========== Portfolio Calculation ========== */
 
-    function stakingTokenValueInUSD(address pool, address account) internal view returns (uint tokenInUSD) {
+    function stakingTokenValueInUSD(address pool, address account)
+        internal
+        view
+        returns (uint256 tokenInUSD)
+    {
         PoolConstant.PoolTypes poolType = poolTypes[pool];
 
         address stakingToken;
-        if (poolType == PoolConstant.PoolTypes.BunnyStake_deprecated) {
-            stakingToken = BUNNY;
+        if (poolType == PoolConstant.PoolTypes.RubiStake_deprecated) {
+            stakingToken = RUBI;
         } else {
             stakingToken = IStrategy(pool).stakingToken();
         }
 
         if (stakingToken == address(0)) return 0;
-        (, tokenInUSD) = priceCalculator.valueOfAsset(stakingToken, IStrategy(pool).principalOf(account));
+        (, tokenInUSD) = priceCalculator.valueOfAsset(
+            stakingToken,
+            IStrategy(pool).principalOf(account)
+        );
     }
 
-    function portfolioOfPoolInUSD(address pool, address account) internal view returns (uint) {
-        uint tokenInUSD = stakingTokenValueInUSD(pool, account);
-        (, uint profitInBNB) = calculateProfit(pool, account);
-        uint profitInBUNNY = 0;
+    function portfolioOfPoolInUSD(address pool, address account)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 tokenInUSD = stakingTokenValueInUSD(pool, account);
+        (, uint256 profitInBNB) = calculateProfit(pool, account);
+        uint256 profitInRUBI = 0;
 
         if (!perfExemptions[pool]) {
             IStrategy strategy = IStrategy(pool);
             if (strategy.minter() != address(0)) {
                 profitInBNB = profitInBNB.mul(70).div(100);
-                profitInBUNNY = IRubyMinter(strategy.minter()).amountRubyToMint(profitInBNB.mul(30).div(100));
+                profitInRUBI = IRubiMinter(strategy.minter()).amountRubiToMint(
+                    profitInBNB.mul(30).div(100)
+                );
             }
 
-            if ((poolTypes[pool] == PoolConstant.PoolTypes.Bunny || poolTypes[pool] == PoolConstant.PoolTypes.BunnyBNB
-            || poolTypes[pool] == PoolConstant.PoolTypes.FlipToFlip)
-                && strategy.bunnyChef() != address(0)) {
-                profitInBUNNY = profitInBUNNY.add(bunnyChef.pendingRuby(pool, account));
+            if (
+                (poolTypes[pool] == PoolConstant.PoolTypes.Rubi ||
+                    poolTypes[pool] == PoolConstant.PoolTypes.RubiBNB ||
+                    poolTypes[pool] == PoolConstant.PoolTypes.FlipToFlip) &&
+                strategy.rubiChef() != address(0)
+            ) {
+                profitInRUBI = profitInRUBI.add(
+                    rubiChef.pendingRubi(pool, account)
+                );
             }
         }
 
-        (, uint profitBNBInUSD) = priceCalculator.valueOfAsset(WBNB, profitInBNB);
-        (, uint profitBUNNYInUSD) = priceCalculator.valueOfAsset(BUNNY, profitInBUNNY);
-        return tokenInUSD.add(profitBNBInUSD).add(profitBUNNYInUSD);
+        (, uint256 profitBNBInUSD) = priceCalculator.valueOfAsset(
+            WBNB,
+            profitInBNB
+        );
+        (, uint256 profitRUBIInUSD) = priceCalculator.valueOfAsset(
+            RUBI,
+            profitInRUBI
+        );
+        return tokenInUSD.add(profitBNBInUSD).add(profitRUBIInUSD);
     }
 
-    function portfolioOf(address account, address[] memory pools) public view returns (uint deposits) {
+    function portfolioOf(address account, address[] memory pools)
+        public
+        view
+        returns (uint256 deposits)
+    {
         deposits = 0;
-        for (uint i = 0; i < pools.length; i++) {
+        for (uint256 i = 0; i < pools.length; i++) {
             deposits = deposits.add(portfolioOfPoolInUSD(pools[i], account));
         }
     }

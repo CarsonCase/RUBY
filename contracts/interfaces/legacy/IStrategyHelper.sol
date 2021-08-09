@@ -32,7 +32,7 @@ pragma solidity ^0.8.4;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-import "../IRubyMinter.sol";
+import "../IRubiMinter.sol";
 
 interface IStrategyHelper {
     function tokenPriceInBNB(address _token) view external returns(uint);
@@ -42,10 +42,10 @@ interface IStrategyHelper {
     function flipPriceInBNB(address _flip) view external returns(uint);
     function flipPriceInUSD(address _flip) view external returns(uint);
 
-    function profitOf(IRubyMinter minter, address _flip, uint amount) external view returns (uint _usd, uint _bunny, uint _bnb);
+    function profitOf(IRubiMinter minter, address _flip, uint amount) external view returns (uint _usd, uint _bunny, uint _bnb);
 
     function tvl(address _flip, uint amount) external view returns (uint);    // in USD
     function tvlInBNB(address _flip, uint amount) external view returns (uint);    // in BNB
-    function apy(IRubyMinter minter, uint pid) external view returns(uint _usd, uint _bunny, uint _bnb);
+    function apy(IRubiMinter minter, uint pid) external view returns(uint _usd, uint _bunny, uint _bnb);
     function compoundingAPY(uint pid, uint compoundUnit) view external returns(uint);
 }

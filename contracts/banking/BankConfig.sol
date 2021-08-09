@@ -32,33 +32,40 @@ pragma solidity ^0.8.4;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
+import "../library/bep20/Ownable.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 
 import "../interfaces/IBank.sol";
 
-
 contract BankConfig is IBankConfig, Ownable {
     /// The portion of interests allocated to the reserve pool.
-    uint public override getReservePoolBps;
+    uint256 public override getReservePoolBps;
 
     /// Interest rate model
     InterestModel public interestModel;
 
-    constructor(uint _reservePoolBps, InterestModel _interestModel) {
+    constructor(uint256 _reservePoolBps, InterestModel _interestModel) {
         setParams(_reservePoolBps, _interestModel);
     }
 
     /// @dev Set all the basic parameters. Must only be called by the owner.
     /// @param _reservePoolBps The new interests allocated to the reserve pool value.
     /// @param _interestModel The new interest rate model contract.
-    function setParams(uint _reservePoolBps, InterestModel _interestModel) public onlyOwner {
+    function setParams(uint256 _reservePoolBps, InterestModel _interestModel)
+        public
+        onlyOwner
+    {
         getReservePoolBps = _reservePoolBps;
         interestModel = _interestModel;
     }
 
     /// @dev Return the interest rate per second, using 1e18 as denom.
-    function getInterestRate(uint debt, uint floating) external view override returns (uint) {
+    function getInterestRate(uint256 debt, uint256 floating)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return interestModel.getInterestRate(debt, floating);
     }
 }

@@ -42,10 +42,9 @@ import "../../interfaces/AggregatorV3Interface.sol";
 import "../../interfaces/IPriceCalculator.sol";
 import "../../library/HomoraMath.sol";
 
-
 contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
-    using SafeMath for uint;
-    using HomoraMath for uint;
+    using SafeMath for uint256;
+    using HomoraMath for uint256;
 
     address public constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address public constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
@@ -53,10 +52,13 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
     address public constant VAI = 0x4BD17003473389A42DAF6a0a729f6Fdb328BbBd7;
     address public constant BUSD = 0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56;
 
-    address public constant BUNNY_BNB_V1 = 0x7Bb89460599Dbf32ee3Aa50798BBcEae2A5F7f6a;
-    address public constant BUNNY_BNB_V2 = 0x5aFEf8567414F29f0f927A0F2787b188624c10E2;
+    address public constant BUNNY_BNB_V1 =
+        0x7Bb89460599Dbf32ee3Aa50798BBcEae2A5F7f6a;
+    address public constant BUNNY_BNB_V2 =
+        0x5aFEf8567414F29f0f927A0F2787b188624c10E2;
 
-    IPancakeFactory private constant factory = IPancakeFactory(0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73);
+    IPancakeFactory private constant factory =
+        IPancakeFactory(0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73);
 
     /* ========== STATE VARIABLES ========== */
 
@@ -68,8 +70,11 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
 
     /* ========== MODIFIERS ========== */
 
-    modifier onlyKeeper {
-        require(msg.sender == keeper || msg.sender == owner(), 'Qore: caller is not the owner or keeper');
+    modifier onlyKeeper() {
+        require(
+            msg.sender == keeper || msg.sender == owner(),
+            "Qore: caller is not the owner or keeper"
+        );
         _;
     }
 
@@ -83,7 +88,10 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function setKeeper(address _keeper) external onlyKeeper {
-        require(_keeper != address(0), 'PriceCalculatorBSC: invalid keeper address');
+        require(
+            _keeper != address(0),
+            "PriceCalculatorBSC: invalid keeper address"
+        );
         keeper = _keeper;
     }
 
@@ -95,78 +103,120 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
         tokenFeeds[asset] = feed;
     }
 
-    function setPrices(address[] memory assets, uint[] memory prices) external onlyKeeper {
-        for (uint i = 0; i < assets.length; i++) {
-            references[assets[i]] = ReferenceData({lastData : prices[i], lastUpdated : block.timestamp});
+    function setPrices(address[] memory assets, uint256[] memory prices)
+        external
+        onlyKeeper
+    {
+        for (uint256 i = 0; i < assets.length; i++) {
+            references[assets[i]] = ReferenceData({
+                lastData: prices[i],
+                lastUpdated: block.timestamp
+            });
         }
     }
 
     /* ========== VIEWS ========== */
 
-    function priceOfBNB() view public override returns (uint) {
-        (, int price, , ,) = AggregatorV3Interface(tokenFeeds[WBNB]).latestRoundData();
-        return uint(price).mul(1e10);
+    function priceOfBNB() public view override returns (uint256) {
+        (, int256 price, , , ) = AggregatorV3Interface(tokenFeeds[WBNB])
+            .latestRoundData();
+        return uint256(price).mul(1e10);
     }
 
-    function priceOfCake() view public returns (uint) {
-        (, int price, , ,) = AggregatorV3Interface(tokenFeeds[CAKE]).latestRoundData();
-        return uint(price).mul(1e10);
+    function priceOfCake() public view returns (uint256) {
+        (, int256 price, , , ) = AggregatorV3Interface(tokenFeeds[CAKE])
+            .latestRoundData();
+        return uint256(price).mul(1e10);
     }
 
-    function priceOfRuby() view public override returns (uint) {
-        (, uint price) = valueOfAsset(BUNNY, 1e18);
+    function priceOfRubi() public view override returns (uint256) {
+        (, uint256 price) = valueOfAsset(BUNNY, 1e18);
         return price;
     }
 
-    function pricesInUSD(address[] memory assets) public view override returns (uint[] memory) {
-        uint[] memory prices = new uint[](assets.length);
-        for (uint i = 0; i < assets.length; i++) {
-            (, uint valueInUSD) = valueOfAsset(assets[i], 1e18);
+    function pricesInUSD(address[] memory assets)
+        public
+        view
+        override
+        returns (uint256[] memory)
+    {
+        uint256[] memory prices = new uint256[](assets.length);
+        for (uint256 i = 0; i < assets.length; i++) {
+            (, uint256 valueInUSD) = valueOfAsset(assets[i], 1e18);
             prices[i] = valueInUSD;
         }
         return prices;
     }
 
-    function valueOfAsset(address asset, uint amount) public view override returns (uint valueInBNB, uint valueInUSD) {
+    function valueOfAsset(address asset, uint256 amount)
+        public
+        view
+        override
+        returns (uint256 valueInBNB, uint256 valueInUSD)
+    {
         if (asset == address(0) || asset == WBNB) {
             return _oracleValueOf(asset, amount);
-        } else if (keccak256(abi.encodePacked(IPancakePair(asset).symbol())) == keccak256("Cake-LP")) {
+        } else if (
+            keccak256(abi.encodePacked(IPancakePair(asset).symbol())) ==
+            keccak256("Cake-LP")
+        ) {
             return _getPairPrice(asset, amount);
         } else {
             return _oracleValueOf(asset, amount);
         }
     }
 
-    function unsafeValueOfAsset(address asset, uint amount) public view returns (uint valueInBNB, uint valueInUSD) {
+    function unsafeValueOfAsset(address asset, uint256 amount)
+        public
+        view
+        returns (uint256 valueInBNB, uint256 valueInUSD)
+    {
         valueInBNB = 0;
         valueInUSD = 0;
 
         if (asset == address(0) || asset == WBNB) {
             valueInBNB = amount;
             valueInUSD = amount.mul(priceOfBNB()).div(1e18);
-        }
-        else if (keccak256(abi.encodePacked(IPancakePair(asset).symbol())) == keccak256("Cake-LP")) {
+        } else if (
+            keccak256(abi.encodePacked(IPancakePair(asset).symbol())) ==
+            keccak256("Cake-LP")
+        ) {
             if (IPancakePair(asset).totalSupply() == 0) return (0, 0);
 
-            (uint reserve0, uint reserve1, ) = IPancakePair(asset).getReserves();
+            (uint256 reserve0, uint256 reserve1, ) = IPancakePair(asset)
+                .getReserves();
             if (IPancakePair(asset).token0() == WBNB) {
-                valueInBNB = amount.mul(reserve0).mul(2).div(IPancakePair(asset).totalSupply());
+                valueInBNB = amount.mul(reserve0).mul(2).div(
+                    IPancakePair(asset).totalSupply()
+                );
                 valueInUSD = valueInBNB.mul(priceOfBNB()).div(1e18);
             } else if (IPancakePair(asset).token1() == WBNB) {
-                valueInBNB = amount.mul(reserve1).mul(2).div(IPancakePair(asset).totalSupply());
+                valueInBNB = amount.mul(reserve1).mul(2).div(
+                    IPancakePair(asset).totalSupply()
+                );
                 valueInUSD = valueInBNB.mul(priceOfBNB()).div(1e18);
             } else {
-                (uint token0PriceInBNB,) = valueOfAsset(IPancakePair(asset).token0(), 1e18);
-                valueInBNB = amount.mul(reserve0).mul(2).mul(token0PriceInBNB).div(1e18).div(IPancakePair(asset).totalSupply());
+                (uint256 token0PriceInBNB, ) = valueOfAsset(
+                    IPancakePair(asset).token0(),
+                    1e18
+                );
+                valueInBNB = amount
+                    .mul(reserve0)
+                    .mul(2)
+                    .mul(token0PriceInBNB)
+                    .div(1e18)
+                    .div(IPancakePair(asset).totalSupply());
                 valueInUSD = valueInBNB.mul(priceOfBNB()).div(1e18);
             }
-        }
-        else {
-            address pairToken = pairTokens[asset] == address(0) ? WBNB : pairTokens[asset];
+        } else {
+            address pairToken = pairTokens[asset] == address(0)
+                ? WBNB
+                : pairTokens[asset];
             address pair = factory.getPair(asset, pairToken);
             if (IBEP20(asset).balanceOf(pair) == 0) return (0, 0);
 
-            (uint reserve0, uint reserve1, ) = IPancakePair(pair).getReserves();
+            (uint256 reserve0, uint256 reserve1, ) = IPancakePair(pair)
+                .getReserves();
             if (IPancakePair(pair).token0() == pairToken) {
                 valueInBNB = reserve0.mul(amount).div(reserve1);
             } else if (IPancakePair(pair).token1() == pairToken) {
@@ -176,7 +226,7 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
             }
 
             if (pairToken != WBNB) {
-                (uint pairValueInBNB,) = valueOfAsset(pairToken, 1e18);
+                (uint256 pairValueInBNB, ) = valueOfAsset(pairToken, 1e18);
                 valueInBNB = valueInBNB.mul(pairValueInBNB).div(1e18);
             }
             valueInUSD = valueInBNB.mul(priceOfBNB()).div(1e18);
@@ -185,27 +235,43 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
 
     /* ========== PRIVATE FUNCTIONS ========== */
 
-    function _getPairPrice(address pair, uint amount) private view returns (uint valueInBNB, uint valueInUSD) {
+    function _getPairPrice(address pair, uint256 amount)
+        private
+        view
+        returns (uint256 valueInBNB, uint256 valueInUSD)
+    {
         address token0 = IPancakePair(pair).token0();
         address token1 = IPancakePair(pair).token1();
-        uint totalSupply = IPancakePair(pair).totalSupply();
-        (uint r0, uint r1,) = IPancakePair(pair).getReserves();
+        uint256 totalSupply = IPancakePair(pair).totalSupply();
+        (uint256 r0, uint256 r1, ) = IPancakePair(pair).getReserves();
 
-        uint sqrtK = HomoraMath.sqrt(r0.mul(r1)).fdiv(totalSupply);
-        (uint px0,) = _oracleValueOf(token0, 1e18);
-        (uint px1,) = _oracleValueOf(token1, 1e18);
-        uint fairPriceInBNB = sqrtK.mul(2).mul(HomoraMath.sqrt(px0)).div(2 ** 56).mul(HomoraMath.sqrt(px1)).div(2 ** 56);
+        uint256 sqrtK = HomoraMath.sqrt(r0.mul(r1)).fdiv(totalSupply);
+        (uint256 px0, ) = _oracleValueOf(token0, 1e18);
+        (uint256 px1, ) = _oracleValueOf(token1, 1e18);
+        uint256 fairPriceInBNB = sqrtK
+            .mul(2)
+            .mul(HomoraMath.sqrt(px0))
+            .div(2**56)
+            .mul(HomoraMath.sqrt(px1))
+            .div(2**56);
 
         valueInBNB = fairPriceInBNB.mul(amount).div(1e18);
         valueInUSD = valueInBNB.mul(priceOfBNB()).div(1e18);
     }
 
-    function _oracleValueOf(address asset, uint amount) private view returns (uint valueInBNB, uint valueInUSD) {
+    function _oracleValueOf(address asset, uint256 amount)
+        private
+        view
+        returns (uint256 valueInBNB, uint256 valueInUSD)
+    {
         valueInUSD = 0;
         if (tokenFeeds[asset] != address(0)) {
-            (, int price, , ,) = AggregatorV3Interface(tokenFeeds[asset]).latestRoundData();
-            valueInUSD = uint(price).mul(1e10).mul(amount).div(1e18);
-        } else if (references[asset].lastUpdated > block.timestamp.sub(1 days)) {
+            (, int256 price, , , ) = AggregatorV3Interface(tokenFeeds[asset])
+                .latestRoundData();
+            valueInUSD = uint256(price).mul(1e10).mul(amount).div(1e18);
+        } else if (
+            references[asset].lastUpdated > block.timestamp.sub(1 days)
+        ) {
             valueInUSD = references[asset].lastData.mul(amount).div(1e18);
         }
         valueInBNB = valueInUSD.mul(1e18).div(priceOfBNB());

@@ -1,65 +1,63 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
 
-/*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
-
-*
-* MIT License
-* ===========
-*
-* Copyright (c) 2020 BunnyFinance
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-*/
+pragma solidity >=0.4.0;
 
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
+import "./Ownable.sol";
+import "./Address.sol";
 
-abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
+/**
+ * @dev Implementation of the {IBEP20} interface.
+ *
+ * This implementation is agnostic to the way tokens are created. This means
+ * that a supply mechanism has to be added in a derived contract using {_mint}.
+ * For a generic mechanism see {BEP20PresetMinterPauser}.
+ *
+ * TIP: For a detailed writeup see our guide
+ * https://forum.zeppelin.solutions/t/how-to-implement-BEP20-supply-mechanisms/226[How
+ * to implement supply mechanisms].
+ *
+ * We have followed general OpenZeppelin guidelines: functions revert instead
+ * of returning `false` on failure. This behavior is nonetheless conventional
+ * and does not conflict with the expectations of BEP20 applications.
+ *
+ * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
+ * This allows applications to reconstruct the allowance for all accounts just
+ * by listening to said events. Other implementations of the EIP may not emit
+ * these events, as it isn't required by the specification.
+ *
+ * Finally, the non-standard {decreaseAllowance} and {increaseAllowance}
+ * functions have been added to mitigate the well-known issues around setting
+ * allowances. See {IBEP20-approve}.
+ */
+contract BEP20 is IBEP20, Ownable {
     using SafeMath for uint256;
+    using Address for address;
 
     mapping(address => uint256) private _balances;
+
     mapping(address => mapping(address => uint256)) private _allowances;
+
     uint256 private _totalSupply;
+
     string private _name;
     string private _symbol;
     uint8 private _decimals;
 
-    uint256[50] private __gap;
-
     /**
-     * @dev sets initials supply and the owner
+     * @dev Sets the values for {name} and {symbol}, initializes {decimals} with
+     * a default value of 18.
+     *
+     * To select a different value for {decimals}, use {_setupDecimals}.
+     *
+     * All three of these values are immutable: they can only be set once during
+     * construction.
      */
-    function __BEP20__init(
-        string memory name,
-        string memory symbol,
-        uint8 decimals
-    ) internal initializer {
-        __Ownable_init();
+    constructor(string memory name, string memory symbol) {
         _name = name;
         _symbol = symbol;
-        _decimals = decimals;
+        _decimals = 18;
     }
 
     /**
@@ -70,24 +68,24 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
     }
 
     /**
+     * @dev Returns the token name.
+     */
+    function name() public view override returns (string memory) {
+        return _name;
+    }
+
+    /**
      * @dev Returns the token decimals.
      */
-    function decimals() external view override returns (uint8) {
+    function decimals() public view override returns (uint8) {
         return _decimals;
     }
 
     /**
      * @dev Returns the token symbol.
      */
-    function symbol() external view override returns (string memory) {
+    function symbol() public view override returns (string memory) {
         return _symbol;
-    }
-
-    /**
-     * @dev Returns the token name.
-     */
-    function name() external view override returns (string memory) {
-        return _name;
     }
 
     /**
@@ -113,11 +111,11 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
      * - the caller must have a balance of at least `amount`.
      */
     function transfer(address recipient, uint256 amount)
-        external
+        public
         override
         returns (bool)
     {
-        _transfer(_msgSender(), recipient, amount);
+        _transfer(payable(msg.sender), recipient, amount);
         return true;
     }
 
@@ -125,7 +123,7 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
      * @dev See {BEP20-allowance}.
      */
     function allowance(address owner, address spender)
-        external
+        public
         view
         override
         returns (uint256)
@@ -141,11 +139,11 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
      * - `spender` cannot be the zero address.
      */
     function approve(address spender, uint256 amount)
-        external
+        public
         override
         returns (bool)
     {
-        _approve(_msgSender(), spender, amount);
+        _approve(payable(msg.sender), spender, amount);
         return true;
     }
 
@@ -165,12 +163,12 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
         address sender,
         address recipient,
         uint256 amount
-    ) external override returns (bool) {
+    ) public override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(
             sender,
-            _msgSender(),
-            _allowances[sender][_msgSender()].sub(
+            payable(msg.sender),
+            _allowances[sender][payable(msg.sender)].sub(
                 amount,
                 "BEP20: transfer amount exceeds allowance"
             )
@@ -195,9 +193,9 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
         returns (bool)
     {
         _approve(
-            _msgSender(),
+            payable(msg.sender),
             spender,
-            _allowances[_msgSender()][spender].add(addedValue)
+            _allowances[payable(msg.sender)][spender].add(addedValue)
         );
         return true;
     }
@@ -221,9 +219,9 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
         returns (bool)
     {
         _approve(
-            _msgSender(),
+            payable(msg.sender),
             spender,
-            _allowances[_msgSender()][spender].sub(
+            _allowances[payable(msg.sender)][spender].sub(
                 subtractedValue,
                 "BEP20: decreased allowance below zero"
             )
@@ -232,10 +230,15 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
     }
 
     /**
-     * @dev Burn `amount` tokens and decreasing the total supply.
+     * @dev Creates `amount` tokens and assigns them to `msg.sender`, increasing
+     * the total supply.
+     *
+     * Requirements
+     *
+     * - `msg.sender` must be the token owner
      */
-    function burn(uint256 amount) public returns (bool) {
-        _burn(_msgSender(), amount);
+    function mint(uint256 amount) public onlyOwner returns (bool) {
+        _mint(payable(msg.sender), amount);
         return true;
     }
 
@@ -343,8 +346,8 @@ abstract contract BEP20Upgradeable is IBEP20, OwnableUpgradeable {
         _burn(account, amount);
         _approve(
             account,
-            _msgSender(),
-            _allowances[account][_msgSender()].sub(
+            payable(msg.sender),
+            _allowances[account][payable(msg.sender)].sub(
                 amount,
                 "BEP20: burn amount exceeds allowance"
             )

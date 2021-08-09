@@ -32,47 +32,47 @@ pragma solidity ^0.8.4;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-
 library PoolConstant {
-
     enum PoolTypes {
-        BunnyStake_deprecated, // no perf fee
-        BunnyFlip_deprecated, // deprecated
-        CakeStake, FlipToFlip, FlipToCake,
-        Bunny, // no perf fee
-        BunnyBNB,
+        RubiStake_deprecated, // no perf fee
+        RubiFlip_deprecated, // deprecated
+        CakeStake,
+        FlipToFlip,
+        FlipToCake,
+        Rubi, // no perf fee
+        RubiBNB,
         Venus,
         Collateral,
-        BunnyToBunny
+        RubiToRubi
     }
 
     struct PoolInfo {
         address pool;
-        uint balance;
-        uint principal;
-        uint available;
-        uint tvl;
-        uint utilized;
-        uint liquidity;
-        uint pBASE;
-        uint pBUNNY;
-        uint depositedAt;
-        uint feeDuration;
-        uint feePercentage;
-        uint portfolio;
+        uint256 balance;
+        uint256 principal;
+        uint256 available;
+        uint256 tvl;
+        uint256 utilized;
+        uint256 liquidity;
+        uint256 pBASE;
+        uint256 depositedAt;
+        uint256 feeDuration;
+        uint256 feePercentage;
+        uint256 portfolio;
+        uint256 pRUBI;
     }
 
     struct RelayInfo {
         address pool;
-        uint balanceInUSD;
-        uint debtInUSD;
-        uint earnedInUSD;
+        uint256 balanceInUSD;
+        uint256 debtInUSD;
+        uint256 earnedInUSD;
     }
 
     struct RelayWithdrawn {
         address pool;
         address account;
-        uint profitInETH;
-        uint lossInETH;
+        uint256 profitInETH;
+        uint256 lossInETH;
     }
 }

@@ -34,7 +34,7 @@ pragma experimental ABIEncoderV2;
 */
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "../../library/PausableUpgradeable.sol";
 import "../../library/WhitelistUpgradeable.sol";
@@ -46,51 +46,68 @@ import "../../interfaces/IVaultCollateral.sol";
 import "../../dashboard/calculator/PriceCalculatorETH.sol";
 import "../../zap/ZapETH.sol";
 
-
-contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgradeable, ReentrancyGuardUpgradeable {
-    using SafeMath for uint;
+contract VaultCollateral is
+    IVaultCollateral,
+    PausableUpgradeable,
+    WhitelistUpgradeable,
+    ReentrancyGuardUpgradeable
+{
+    using SafeMath for uint256;
     using SafeToken for address;
 
     /* ========== CONSTANTS ============= */
 
-    PoolConstant.PoolTypes public constant poolType = PoolConstant.PoolTypes.Collateral;
+    PoolConstant.PoolTypes public constant poolType =
+        PoolConstant.PoolTypes.Collateral;
 
-    PriceCalculatorETH public constant priceCalculator = PriceCalculatorETH(0xB73106688fdfee99578731aDb18c9689462B415a);
-    ZapETH public constant zap = ZapETH(0x421a8dfd8683400Ee6AFE8EDEbdbe6E76A61f278);
+    PriceCalculatorETH public constant priceCalculator =
+        PriceCalculatorETH(0xB73106688fdfee99578731aDb18c9689462B415a);
+    ZapETH public constant zap =
+        ZapETH(payable(0x421a8dfd8683400Ee6AFE8EDEbdbe6E76A61f278));
 
     address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address private constant BRIDGE = 0xE46Fbb655867CB122A3b14e03FC612Efb1AB6B7d;
+    address private constant BRIDGE =
+        0xE46Fbb655867CB122A3b14e03FC612Efb1AB6B7d;
 
-    uint public constant override WITHDRAWAL_FEE_PERIOD = 3 days;
-    uint public constant override WITHDRAWAL_FEE_UNIT = 10000;
-    uint public constant override WITHDRAWAL_FEE = 50;
+    uint256 public constant override WITHDRAWAL_FEE_PERIOD = 3 days;
+    uint256 public constant override WITHDRAWAL_FEE_UNIT = 10000;
+    uint256 public constant override WITHDRAWAL_FEE = 50;
 
     /* ========== STATE VARIABLES ========== */
 
     address public override stakingToken;
     address public pairToken;
 
-    uint public override collateralValueMin;
+    uint256 public override collateralValueMin;
 
-    mapping(address => uint) private _available;
-    mapping(address => uint) private _collateral;
-    mapping(address => uint) private _realizedProfit;
-    mapping(address => uint) private _depositedAt;
+    mapping(address => uint256) private _available;
+    mapping(address => uint256) private _collateral;
+    mapping(address => uint256) private _realizedProfit;
+    mapping(address => uint256) private _depositedAt;
 
     mapping(address => bool) private _testers;
 
-    uint public totalProfit;
-    uint public totalCollateral;
+    uint256 public totalProfit;
+    uint256 public totalCollateral;
 
     /* ========== EVENTS ========== */
 
-    event CollateralAdded(address indexed user, uint amount);
-    event CollateralRemoved(address indexed user, uint amount, uint profitInETH);
-    event CollateralUnlocked(address indexed user, uint amount, uint profitInETH, uint lossInETH);
-    event Recovered(address token, uint amount);
+    event CollateralAdded(address indexed user, uint256 amount);
+    event CollateralRemoved(
+        address indexed user,
+        uint256 amount,
+        uint256 profitInETH
+    );
+    event CollateralUnlocked(
+        address indexed user,
+        uint256 amount,
+        uint256 profitInETH,
+        uint256 lossInETH
+    );
+    event Recovered(address token, uint256 amount);
 
     /* ========== MODIFIER ========== */
-    modifier onlyTester {
+    modifier onlyTester() {
         require(isTester(msg.sender), "VaultCollateral: not tester");
         _;
     }
@@ -108,42 +125,79 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
         stakingToken = _token;
         collateralValueMin = 100e18;
 
-        _token.safeApprove(address(zap), uint(- 1));
-        if (keccak256(abi.encodePacked(IUniswapV2Pair(_token).symbol())) == keccak256("UNI-V2")) {
+        _token.safeApprove(address(zap), uint256(1));
+        if (
+            keccak256(abi.encodePacked(IUniswapV2Pair(_token).symbol())) ==
+            keccak256("UNI-V2")
+        ) {
             address token0 = IUniswapV2Pair(_token).token0();
             address token1 = IUniswapV2Pair(_token).token1();
             pairToken = token0 == WETH ? token1 : token0;
-            pairToken.safeApprove(address(zap), uint(- 1));
+            pairToken.safeApprove(address(zap), uint256(1));
         }
     }
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function balance() public view override returns (uint) {
-        return stakingToken == WETH ? address(this).balance : IERC20(stakingToken).balanceOf(address(this));
+    function balance() public view override returns (uint256) {
+        return
+            stakingToken == WETH
+                ? address(this).balance
+                : IERC20(stakingToken).balanceOf(address(this));
     }
 
-    function availableOf(address account) public view override returns (uint) {
+    function availableOf(address account)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return _available[account];
     }
 
-    function collateralOf(address account) public view override returns (uint) {
+    function collateralOf(address account)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return _collateral[account];
     }
 
-    function collateralInUSD(address account) public view returns (uint valueInUSD) {
-        (, valueInUSD) = priceCalculator.valueOfAsset(stakingToken, _collateral[account]);
+    function collateralInUSD(address account)
+        public
+        view
+        returns (uint256 valueInUSD)
+    {
+        (, valueInUSD) = priceCalculator.valueOfAsset(
+            stakingToken,
+            _collateral[account]
+        );
     }
 
-    function realizedInETH(address account) public view override returns (uint) {
+    function realizedInETH(address account)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return _realizedProfit[account];
     }
 
-    function depositedAt(address account) external view override returns (uint) {
+    function depositedAt(address account)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _depositedAt[account];
     }
 
-    function withdrawalFee(address account, uint amount) public view returns (uint) {
+    function withdrawalFee(address account, uint256 amount)
+        public
+        view
+        returns (uint256)
+    {
         if (_depositedAt[account] + WITHDRAWAL_FEE_PERIOD < block.timestamp) {
             return 0;
         }
@@ -155,15 +209,15 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
     }
 
     function canRemoveCollateral(address account) external view returns (bool) {
-        uint needBalance;
+        uint256 needBalance;
         if (stakingToken == WETH) {
-            uint available = _available[account];
+            uint256 available = _available[account];
             if (available > 0) {
                 needBalance = available;
             }
         }
 
-        uint profitInETH = _realizedProfit[account];
+        uint256 profitInETH = _realizedProfit[account];
         if (profitInETH > 0) {
             needBalance = needBalance.add(profitInETH);
         }
@@ -173,37 +227,57 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function bridgeETH(uint amount) external onlyWhitelisted {
+    function bridgeETH(uint256 amount) external onlyWhitelisted {
         if (stakingToken == WETH) {
-            require(address(this).balance.sub(totalCollateral).sub(totalProfit) >= amount, "VaultCollateral: insufficient balance");
+            require(
+                address(this).balance.sub(totalCollateral).sub(totalProfit) >=
+                    amount,
+                "VaultCollateral: insufficient balance"
+            );
         } else {
-            require(address(this).balance.sub(totalProfit) >= amount, "VaultCollateral: insufficient balance");
+            require(
+                address(this).balance.sub(totalProfit) >= amount,
+                "VaultCollateral: insufficient balance"
+            );
         }
         SafeToken.safeTransferETH(BRIDGE, amount);
     }
 
-    function setCollateralValueMin(uint newValue) external onlyOwner {
+    function setCollateralValueMin(uint256 newValue) external onlyOwner {
         require(newValue > 0, "CVaultETHLP: minimum value must not be zero");
         collateralValueMin = newValue;
     }
 
-    function unlockCollateral(address account, uint profitInETH, uint lossInETH) external onlyWhitelisted {
-        (, uint lossInUSD) = priceCalculator.valueOfAsset(WETH, lossInETH);
-        (, uint tokenInUSD) = priceCalculator.valueOfAsset(stakingToken, 1e18);
+    function unlockCollateral(
+        address account,
+        uint256 profitInETH,
+        uint256 lossInETH
+    ) external onlyWhitelisted {
+        (, uint256 lossInUSD) = priceCalculator.valueOfAsset(WETH, lossInETH);
+        (, uint256 tokenInUSD) = priceCalculator.valueOfAsset(
+            stakingToken,
+            1e18
+        );
 
-        uint available = _collateral[account].sub(withdrawalFee(account, _collateral[account]));
-        uint lossInCollateral = lossInUSD.mul(1e18).div(tokenInUSD);
+        uint256 available = _collateral[account].sub(
+            withdrawalFee(account, _collateral[account])
+        );
+        uint256 lossInCollateral = lossInUSD.mul(1e18).div(tokenInUSD);
         if (lossInCollateral > 0) {
-            available = available > lossInCollateral ? available.sub(lossInCollateral) : 0;
+            available = available > lossInCollateral
+                ? available.sub(lossInCollateral)
+                : 0;
         }
 
         if (profitInETH > 0) {
             totalProfit = totalProfit.add(profitInETH);
-            _realizedProfit[account] = _realizedProfit[account].add(profitInETH);
+            _realizedProfit[account] = _realizedProfit[account].add(
+                profitInETH
+            );
         }
 
         _available[account] = _available[account].add(available);
-        uint repayment = _collateral[account].sub(available);
+        uint256 repayment = _collateral[account].sub(available);
 
         delete _collateral[account];
         delete _depositedAt[account];
@@ -211,16 +285,22 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
         if (repayment > 0) {
             totalCollateral = totalCollateral.sub(repayment);
 
-            uint _beforeETH = address(this).balance;
+            uint256 _beforeETH = address(this).balance;
             if (stakingToken != WETH) {
                 zap.zapOut(stakingToken, repayment);
                 if (pairToken != address(0)) {
-                    zap.zapOut(pairToken, IERC20(pairToken).balanceOf(address(this)));
+                    zap.zapOut(
+                        pairToken,
+                        IERC20(pairToken).balanceOf(address(this))
+                    );
                 }
             } else {
                 _beforeETH = _beforeETH.sub(repayment);
             }
-            SafeToken.safeTransferETH(BRIDGE, address(this).balance.sub(_beforeETH));
+            SafeToken.safeTransferETH(
+                BRIDGE,
+                address(this).balance.sub(_beforeETH)
+            );
         }
         emit CollateralUnlocked(account, available, profitInETH, lossInETH);
     }
@@ -231,15 +311,27 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function addCollateral(uint amount) public override onlyTester notPaused nonReentrant {
-        require(stakingToken != WETH, 'VaultCollateral: invalid asset');
+    function addCollateral(uint256 amount)
+        public
+        override
+        onlyTester
+        notPaused
+        nonReentrant
+    {
+        require(stakingToken != WETH, "VaultCollateral: invalid asset");
 
-        uint _before = balance();
+        uint256 _before = balance();
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         amount = balance().sub(_before);
 
-        (, uint valueInUSD) = priceCalculator.valueOfAsset(stakingToken, amount);
-        require(valueInUSD >= collateralValueMin, "VaultCollateral: collateral value limit");
+        (, uint256 valueInUSD) = priceCalculator.valueOfAsset(
+            stakingToken,
+            amount
+        );
+        require(
+            valueInUSD >= collateralValueMin,
+            "VaultCollateral: collateral value limit"
+        );
 
         totalCollateral = totalCollateral.add(amount);
         _collateral[msg.sender] = _collateral[msg.sender].add(amount);
@@ -247,12 +339,25 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
         emit CollateralAdded(msg.sender, amount);
     }
 
-    function addCollateralETH() public payable override onlyTester notPaused nonReentrant {
-        require(stakingToken == WETH, 'VaultCollateral: invalid asset');
+    function addCollateralETH()
+        public
+        payable
+        override
+        onlyTester
+        notPaused
+        nonReentrant
+    {
+        require(stakingToken == WETH, "VaultCollateral: invalid asset");
 
-        uint amount = msg.value;
-        (, uint valueInUSD) = priceCalculator.valueOfAsset(stakingToken, amount);
-        require(valueInUSD >= collateralValueMin, "VaultCollateral: collateral value limit");
+        uint256 amount = msg.value;
+        (, uint256 valueInUSD) = priceCalculator.valueOfAsset(
+            stakingToken,
+            amount
+        );
+        require(
+            valueInUSD >= collateralValueMin,
+            "VaultCollateral: collateral value limit"
+        );
 
         totalCollateral = totalCollateral.add(amount);
         _collateral[msg.sender] = _collateral[msg.sender].add(amount);
@@ -261,8 +366,8 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
     }
 
     function removeCollateral() external override {
-        uint available = _available[msg.sender];
-        uint profitInETH = _realizedProfit[msg.sender];
+        uint256 available = _available[msg.sender];
+        uint256 profitInETH = _realizedProfit[msg.sender];
         delete _available[msg.sender];
         delete _realizedProfit[msg.sender];
 
@@ -284,8 +389,14 @@ contract VaultCollateral is IVaultCollateral, PausableUpgradeable, WhitelistUpgr
 
     /* ========== SALVAGE PURPOSE ONLY ========== */
 
-    function recoverToken(address tokenAddress, uint tokenAmount) external onlyOwner {
-        require(tokenAddress != address(0) && tokenAddress != stakingToken, "VaultCollateral: cannot recover token");
+    function recoverToken(address tokenAddress, uint256 tokenAmount)
+        external
+        onlyOwner
+    {
+        require(
+            tokenAddress != address(0) && tokenAddress != stakingToken,
+            "VaultCollateral: cannot recover token"
+        );
 
         tokenAddress.safeTransfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);

@@ -34,42 +34,47 @@ pragma experimental ABIEncoderV2;
 */
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "../../library/PausableUpgradeable.sol";
 import "../../library/SafeToken.sol";
 import "../../library/SafeVenus.sol";
+
+import {VaultVenusBridgeOwner} from "./VaultVenusBridgeOwner.sol";
+import "../VaultController.sol";
 
 import "../../interfaces/IStrategy.sol";
 import "../../interfaces/IVToken.sol";
 import "../../interfaces/IVenusDistribution.sol";
 import "../../interfaces/IVaultVenusBridge.sol";
 import "../../interfaces/IBank.sol";
-import "../VaultController.sol";
-import "./VaultVenusBridgeOwner.sol";
-
 
 contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
-    using SafeMath for uint;
+    using SafeMath for uint256;
     using SafeToken for address;
 
     /* ========== CONSTANTS ============= */
 
-    uint public constant override pid = 9999;
-    PoolConstant.PoolTypes public constant override poolType = PoolConstant.PoolTypes.Venus;
+    uint256 public constant override pid = 9999;
+    PoolConstant.PoolTypes public constant override poolType =
+        PoolConstant.PoolTypes.Venus;
 
-    IVenusDistribution private constant VENUS_UNITROLLER = IVenusDistribution(0xfD36E2c2a6789Db23113685031d7F16329158384);
-    VaultVenusBridgeOwner private constant VENUS_BRIDGE_OWNER = VaultVenusBridgeOwner(0x500f1F9b16ff707F81d5281de6E5D5b14cE8Ea71);
+    IVenusDistribution private constant VENUS_UNITROLLER =
+        IVenusDistribution(0xfD36E2c2a6789Db23113685031d7F16329158384);
+    VaultVenusBridgeOwner private constant VENUS_BRIDGE_OWNER =
+        VaultVenusBridgeOwner(
+            payable(0x500f1F9b16ff707F81d5281de6E5D5b14cE8Ea71)
+        );
 
     address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address private constant XVS = 0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63;
 
-    uint private constant COLLATERAL_RATIO_INIT = 975;
-    uint private constant COLLATERAL_RATIO_EMERGENCY = 998;
-    uint private constant COLLATERAL_RATIO_SYSTEM_DEFAULT = 6e17;
-    uint private constant DUST = 1000;
+    uint256 private constant COLLATERAL_RATIO_INIT = 975;
+    uint256 private constant COLLATERAL_RATIO_EMERGENCY = 998;
+    uint256 private constant COLLATERAL_RATIO_SYSTEM_DEFAULT = 6e17;
+    uint256 private constant DUST = 1000;
 
-    uint private constant VENUS_EXIT_BASE = 10000;
+    uint256 private constant VENUS_EXIT_BASE = 10000;
 
     /* ========== STATE VARIABLES ========== */
 
@@ -78,40 +83,64 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     SafeVenus public safeVenus;
     address public bank;
 
-    uint public venusBorrow;
-    uint public venusSupply;
+    uint256 public venusBorrow;
+    uint256 public venusSupply;
 
-    uint public collateralDepth;
-    uint public collateralRatioFactor;
+    uint256 public collateralDepth;
+    uint256 public collateralRatioFactor;
 
-    uint public collateralRatio;
-    uint public collateralRatioLimit;
-    uint public collateralRatioEmergency;
+    uint256 public collateralRatio;
+    uint256 public collateralRatioLimit;
+    uint256 public collateralRatioEmergency;
 
-    uint public reserveRatio;
+    uint256 public reserveRatio;
 
-    uint public totalShares;
-    mapping(address => uint) private _shares;
-    mapping(address => uint) private _principal;
-    mapping(address => uint) private _depositedAt;
+    uint256 public totalShares;
+    mapping(address => uint256) private _shares;
+    mapping(address => uint256) private _principal;
+    mapping(address => uint256) private _depositedAt;
 
-    uint public venusExitRatio;
-    uint public collateralRatioSystem;
+    uint256 public venusExitRatio;
+    uint256 public collateralRatioSystem;
 
     /* ========== EVENTS ========== */
 
-    event CollateralFactorsUpdated(uint collateralRatioFactor, uint collateralDepth);
-    event DebtAdded(address bank, uint amount);
-    event DebtRemoved(address bank, uint amount);
+    event CollateralFactorsUpdated(
+        uint256 collateralRatioFactor,
+        uint256 collateralDepth
+    );
+    event DebtAdded(address bank, uint256 amount);
+    event DebtRemoved(address bank, uint256 amount);
+
+    event Deposited(address indexed user, uint256 amount);
+    event Withdrawn(
+        address indexed user,
+        uint256 amount,
+        uint256 withdrawalFee
+    );
+    event ProfitPaid(
+        address indexed user,
+        uint256 profit,
+        uint256 performanceFee
+    );
+    event RubiPaid(
+        address indexed user,
+        uint256 profit,
+        uint256 performanceFee
+    );
+    event Harvested(uint256 profit);
 
     /* ========== MODIFIERS ========== */
 
-    modifier onlyBank {
-        require(bank != address(0) && msg.sender == bank, 'VaultVenus: caller is not the bank');
+    modifier onlyBank() {
+        require(
+            bank != address(0) && msg.sender == bank,
+            "VaultVenus: caller is not the bank"
+        );
         _;
     }
 
-    modifier accrueBank {
+    modifier accrueBank() {
         if (bank != address(0)) {
             IBank(bank).executeAccrue();
         }
@@ -129,58 +158,83 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         vToken = IVToken(_vToken);
 
-        (, uint collateralFactorMantissa,) = VENUS_UNITROLLER.markets(_vToken);
-        collateralFactorMantissa = Math.min(collateralFactorMantissa, Math.min(collateralRatioSystem, COLLATERAL_RATIO_SYSTEM_DEFAULT));
+        (, uint256 collateralFactorMantissa, ) = VENUS_UNITROLLER.markets(
+            _vToken
+        );
+        collateralFactorMantissa = Math.min(
+            collateralFactorMantissa,
+            Math.min(collateralRatioSystem, COLLATERAL_RATIO_SYSTEM_DEFAULT)
+        );
 
         collateralDepth = 8;
         collateralRatioFactor = COLLATERAL_RATIO_INIT;
 
         collateralRatio = 0;
-        collateralRatioEmergency = collateralFactorMantissa.mul(COLLATERAL_RATIO_EMERGENCY).div(1000);
-        collateralRatioLimit = collateralFactorMantissa.mul(collateralRatioFactor).div(1000);
+        collateralRatioEmergency = collateralFactorMantissa
+            .mul(COLLATERAL_RATIO_EMERGENCY)
+            .div(1000);
+        collateralRatioLimit = collateralFactorMantissa
+            .mul(collateralRatioFactor)
+            .div(1000);
 
         reserveRatio = 10;
     }
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function totalSupply() external view override returns (uint) {
+    function totalSupply() external view override returns (uint256) {
         return totalShares;
     }
 
-    function balance() public view override returns (uint) {
-        uint debtOfBank = bank == address(0) ? 0 : IBank(bank).debtToProviders();
-        return balanceAvailable().add(venusSupply).sub(venusBorrow).add(debtOfBank);
+    function balance() public view override returns (uint256) {
+        uint256 debtOfBank = bank == address(0)
+            ? 0
+            : IBank(bank).debtToProviders();
+        return
+            balanceAvailable().add(venusSupply).sub(venusBorrow).add(
+                debtOfBank
+            );
     }
 
-    function balanceAvailable() public view returns (uint) {
+    function balanceAvailable() public view returns (uint256) {
         return venusBridge.availableOf(address(this));
     }
 
-    function balanceReserved() public view returns (uint) {
-        return Math.min(balanceAvailable(), balance().mul(reserveRatio).div(1000));
+    function balanceReserved() public view returns (uint256) {
+        return
+            Math.min(balanceAvailable(), balance().mul(reserveRatio).div(1000));
     }
 
-    function balanceOf(address account) public view override returns (uint) {
+    function balanceOf(address account) public view override returns (uint256) {
         if (totalShares == 0) return 0;
         return balance().mul(sharesOf(account)).div(totalShares);
     }
 
-    function withdrawableBalanceOf(address account) public view override returns (uint) {
+    function withdrawableBalanceOf(address account)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return balanceOf(account);
     }
 
-    function sharesOf(address account) public view override returns (uint) {
+    function sharesOf(address account) public view override returns (uint256) {
         return _shares[account];
     }
 
-    function principalOf(address account) override public view returns (uint) {
+    function principalOf(address account)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return _principal[account];
     }
 
-    function earned(address account) override public view returns (uint) {
-        uint accountBalance = balanceOf(account);
-        uint accountPrincipal = principalOf(account);
+    function earned(address account) public view override returns (uint256) {
+        uint256 accountBalance = balanceOf(account);
+        uint256 accountPrincipal = principalOf(account);
         if (accountBalance >= accountPrincipal + DUST) {
             return accountBalance.sub(accountPrincipal);
         } else {
@@ -188,7 +242,12 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         }
     }
 
-    function depositedAt(address account) external view override returns (uint) {
+    function depositedAt(address account)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _depositedAt[account];
     }
 
@@ -196,12 +255,16 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         return address(_stakingToken);
     }
 
-    function priceShare() external view override returns (uint) {
+    function priceShare() external view override returns (uint256) {
         if (totalShares == 0) return 1e18;
         return balance().mul(1e18).div(totalShares);
     }
 
-    function getUtilizationInfo() external view returns (uint liquidity, uint utilized) {
+    function getUtilizationInfo()
+        external
+        view
+        returns (uint256 liquidity, uint256 utilized)
+    {
         liquidity = balance();
         utilized = balance().sub(balanceReserved());
     }
@@ -243,9 +306,9 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     //        VaultController.setMinter(newMinter);
     //    }
     //
-    //    function setBunnyChef(IRubyChef newChef) public override onlyOwner {
-    //        require(address(_bunnyChef) == address(0), "VaultVenus: bunnyChef exists");
-    //        VaultController.setBunnyChef(IRubyChef(newChef));
+    //    function setRubiChef(IRubiChef newChef) public override onlyOwner {
+    //        require(address(_rubiChef) == address(0), "VaultVenus: rubiChef exists");
+    //        VaultController.setRubiChef(IRubiChef(newChef));
     //    }
     //
     //    function setCollateralFactors(uint _collateralRatioFactor, uint _collateralDepth) external onlyOwner {
@@ -267,7 +330,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     //        reserveRatio = _reserveRatio;
     //    }
 
-    function setVenusExitRatio(uint _ratio) external onlyOwner {
+    function setVenusExitRatio(uint256 _ratio) external onlyOwner {
         require(_ratio <= VENUS_EXIT_BASE);
         venusExitRatio = _ratio;
     }
@@ -282,19 +345,29 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     }
 
     function increaseCollateral() external onlyKeeper {
-        _increaseCollateral(safeVenus.safeCompoundDepth(address(this)));
+        _increaseCollateral(
+            safeVenus.safeCompoundDepth(payable(address(this)))
+        );
     }
 
-    function decreaseCollateral(uint amountMin, uint supply) external payable onlyKeeper {
+    function decreaseCollateral(uint256 amountMin, uint256 supply)
+        external
+        payable
+        onlyKeeper
+    {
         updateVenusFactors();
 
-        uint _balanceBefore = balance();
+        uint256 _balanceBefore = balance();
 
         supply = msg.value > 0 ? msg.value : supply;
         if (address(_stakingToken) == WBNB) {
-            venusBridge.deposit{value : supply}(address(this), supply);
+            venusBridge.deposit{value: supply}(address(this), supply);
         } else {
-            _stakingToken.safeTransferFrom(msg.sender, address(venusBridge), supply);
+            _stakingToken.transferFrom(
+                msg.sender,
+                address(venusBridge),
+                supply
+            );
             venusBridge.deposit(address(this), supply);
         }
 
@@ -303,19 +376,23 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         venusBridge.withdraw(msg.sender, supply);
 
         updateVenusFactors();
-        uint _balanceAfter = balance();
+        uint256 _balanceAfter = balance();
         if (_balanceAfter < _balanceBefore && address(_stakingToken) != WBNB) {
-            uint migrationCost = _balanceBefore.sub(_balanceAfter);
-            _stakingToken.transferFrom(owner(), address(venusBridge), migrationCost);
+            uint256 migrationCost = _balanceBefore.sub(_balanceAfter);
+            _stakingToken.transferFrom(
+                owner(),
+                address(venusBridge),
+                migrationCost
+            );
             venusBridge.deposit(address(this), migrationCost);
         }
     }
 
     /* ========== BANKING FUNCTIONS ========== */
 
-    function borrow(uint amount) external onlyBank returns (uint) {
+    function borrow(uint256 amount) external onlyBank returns (uint256) {
         updateVenusFactors();
-        uint available = balanceAvailable();
+        uint256 available = balanceAvailable();
         if (available < amount) {
             _decreaseCollateral(amount);
             available = balanceAvailable();
@@ -328,9 +405,9 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         return amount;
     }
 
-    function repay() external payable onlyBank returns (uint) {
-        uint amount = msg.value;
-        venusBridge.deposit{value : amount}(address(this), amount);
+    function repay() external payable onlyBank returns (uint256) {
+        uint256 amount = msg.value;
+        venusBridge.deposit{value: amount}(address(this), amount);
 
         emit DebtRemoved(bank, amount);
         return amount;
@@ -339,28 +416,49 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     /* ========== MUTATIVE FUNCTIONS ========== */
 
     function updateVenusFactors() public {
-        (venusBorrow, venusSupply) = safeVenus.venusBorrowAndSupply(address(this));
-        (, uint collateralFactorMantissa,) = VENUS_UNITROLLER.markets(address(vToken));
-        collateralFactorMantissa = Math.min(collateralFactorMantissa, Math.min(collateralRatioSystem, COLLATERAL_RATIO_SYSTEM_DEFAULT));
+        (venusBorrow, venusSupply) = safeVenus.venusBorrowAndSupply(
+            payable(address(this))
+        );
+        (, uint256 collateralFactorMantissa, ) = VENUS_UNITROLLER.markets(
+            address(vToken)
+        );
+        collateralFactorMantissa = Math.min(
+            collateralFactorMantissa,
+            Math.min(collateralRatioSystem, COLLATERAL_RATIO_SYSTEM_DEFAULT)
+        );
 
-        collateralRatio = venusBorrow == 0 ? 0 : venusBorrow.mul(1e18).div(venusSupply);
-        collateralRatioLimit = collateralFactorMantissa.mul(collateralRatioFactor).div(1000);
-        collateralRatioEmergency = collateralFactorMantissa.mul(COLLATERAL_RATIO_EMERGENCY).div(1000);
+        collateralRatio = venusBorrow == 0
+            ? 0
+            : venusBorrow.mul(1e18).div(venusSupply);
+        collateralRatioLimit = collateralFactorMantissa
+            .mul(collateralRatioFactor)
+            .div(1000);
+        collateralRatioEmergency = collateralFactorMantissa
+            .mul(COLLATERAL_RATIO_EMERGENCY)
+            .div(1000);
     }
 
-    function deposit(uint amount) public override accrueBank notPaused nonReentrant {
-        require(address(_stakingToken) != WBNB, 'VaultVenus: invalid asset');
+    function deposit(uint256 amount)
+        public
+        override
+        accrueBank
+        notPaused
+        nonReentrant
+    {
+        require(address(_stakingToken) != WBNB, "VaultVenus: invalid asset");
         updateVenusFactors();
 
-        uint _balance = balance();
-        uint _before = balanceAvailable();
-        _stakingToken.safeTransferFrom(msg.sender, address(venusBridge), amount);
+        uint256 _balance = balance();
+        uint256 _before = balanceAvailable();
+        _stakingToken.transferFrom(msg.sender, address(venusBridge), amount);
         venusBridge.deposit(address(this), amount);
         amount = balanceAvailable().sub(_before);
 
-        uint shares = totalShares == 0 ? amount : amount.mul(totalShares).div(_balance);
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.updateRewardsOf(address(this));
+        uint256 shares = totalShares == 0
+            ? amount
+            : amount.mul(totalShares).div(_balance);
+        if (address(_rubiChef) != address(0)) {
+            _rubiChef.updateRewardsOf(address(this));
         }
 
         totalShares = totalShares.add(shares);
@@ -368,8 +466,8 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         _principal[msg.sender] = _principal[msg.sender].add(amount);
         _depositedAt[msg.sender] = block.timestamp;
 
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyDeposited(msg.sender, shares);
+        if (address(_rubiChef) != address(0)) {
+            _rubiChef.notifyDeposited(msg.sender, shares);
         }
         emit Deposited(msg.sender, amount);
     }
@@ -379,16 +477,18 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     }
 
     function depositBNB() public payable accrueBank notPaused nonReentrant {
-        require(address(_stakingToken) == WBNB, 'VaultVenus: invalid asset');
+        require(address(_stakingToken) == WBNB, "VaultVenus: invalid asset");
         updateVenusFactors();
 
-        uint _balance = balance();
-        uint amount = msg.value;
-        venusBridge.deposit{value : amount}(address(this), amount);
+        uint256 _balance = balance();
+        uint256 amount = msg.value;
+        venusBridge.deposit{value: amount}(address(this), amount);
 
-        uint shares = totalShares == 0 ? amount : amount.mul(totalShares).div(_balance);
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.updateRewardsOf(address(this));
+        uint256 shares = totalShares == 0
+            ? amount
+            : amount.mul(totalShares).div(_balance);
+        if (address(_rubiChef) != address(0)) {
+            _rubiChef.updateRewardsOf(address(this));
         }
 
         totalShares = totalShares.add(shares);
@@ -396,20 +496,23 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         _principal[msg.sender] = _principal[msg.sender].add(amount);
         _depositedAt[msg.sender] = block.timestamp;
 
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyDeposited(msg.sender, shares);
+        if (address(_rubiChef) != address(0)) {
+            _rubiChef.notifyDeposited(msg.sender, shares);
         }
         emit Deposited(msg.sender, amount);
     }
 
     function withdrawAll() external override accrueBank {
         updateVenusFactors();
-        uint amount = balanceOf(msg.sender);
-        require(_hasSufficientBalance(amount), "VaultVenus: insufficient balance");
+        uint256 amount = balanceOf(msg.sender);
+        require(
+            _hasSufficientBalance(amount),
+            "VaultVenus: insufficient balance"
+        );
 
-        uint principal = principalOf(msg.sender);
-        uint available = balanceAvailable();
-        uint depositTimestamp = _depositedAt[msg.sender];
+        uint256 principal = principalOf(msg.sender);
+        uint256 available = balanceAvailable();
+        uint256 depositTimestamp = _depositedAt[msg.sender];
         if (available < amount) {
             _decreaseCollateral(_getBufferedAmountMin(amount));
             amount = balanceOf(msg.sender);
@@ -417,11 +520,11 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         }
 
         amount = Math.min(amount, available);
-        uint shares = _shares[msg.sender];
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyWithdrawn(msg.sender, shares);
-            uint bunnyAmount = _bunnyChef.safeRubyTransfer(msg.sender);
-            emit BunnyPaid(msg.sender, bunnyAmount, 0);
+        uint256 shares = _shares[msg.sender];
+        if (address(_rubiChef) != address(0)) {
+            _rubiChef.notifyWithdrawn(msg.sender, shares);
+            uint256 rubiAmount = _rubiChef.safeRubiTransfer(msg.sender);
+            emit RubiPaid(msg.sender, rubiAmount, 0);
         }
 
         totalShares = totalShares.sub(shares);
@@ -429,15 +532,32 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         delete _principal[msg.sender];
         delete _depositedAt[msg.sender];
 
-        uint profit = amount > principal ? amount.sub(principal) : 0;
-        uint withdrawalFee = canMint() ? _minter.withdrawalFee(principal, depositTimestamp) : 0;
-        uint performanceFee = canMint() ? _minter.performanceFee(profit) : 0;
+        uint256 profit = amount > principal ? amount.sub(principal) : 0;
+        uint256 withdrawalFee = canMint()
+            ? _minter.withdrawalFee(principal, depositTimestamp)
+            : 0;
+        uint256 performanceFee = canMint() ? _minter.performanceFee(profit) : 0;
         if (withdrawalFee.add(performanceFee) > DUST) {
-            venusBridge.withdraw(address(this), withdrawalFee.add(performanceFee));
+            venusBridge.withdraw(
+                address(this),
+                withdrawalFee.add(performanceFee)
+            );
             if (address(_stakingToken) == WBNB) {
-                _minter.mintFor{value : withdrawalFee.add(performanceFee)}(address(0), withdrawalFee, performanceFee, msg.sender, depositTimestamp);
+                _minter.mintFor{value: withdrawalFee.add(performanceFee)}(
+                    address(0),
+                    withdrawalFee,
+                    performanceFee,
+                    msg.sender,
+                    depositTimestamp
+                );
             } else {
-                _minter.mintFor(address(_stakingToken), withdrawalFee, performanceFee, msg.sender, depositTimestamp);
+                _minter.mintFor(
+                    address(_stakingToken),
+                    withdrawalFee,
+                    performanceFee,
+                    msg.sender,
+                    depositTimestamp
+                );
             }
 
             if (performanceFee > 0) {
@@ -454,37 +574,56 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         emit Withdrawn(msg.sender, amount, withdrawalFee);
     }
 
-    function withdraw(uint) external override {
+    function withdraw(uint256) external override {
         revert("N/A");
     }
 
-    function withdrawUnderlying(uint _amount) external accrueBank {
+    function withdrawUnderlying(uint256 _amount) external accrueBank {
         updateVenusFactors();
-        uint amount = Math.min(_amount, _principal[msg.sender]);
-        uint available = balanceAvailable();
+        uint256 amount = Math.min(_amount, _principal[msg.sender]);
+        uint256 available = balanceAvailable();
         if (available < amount) {
             _decreaseCollateral(_getBufferedAmountMin(amount));
             available = balanceAvailable();
         }
 
         amount = Math.min(amount, available);
-        uint shares = balance() == 0 ? 0 : Math.min(amount.mul(totalShares).div(balance()), _shares[msg.sender]);
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyWithdrawn(msg.sender, shares);
+        uint256 shares = balance() == 0
+            ? 0
+            : Math.min(
+                amount.mul(totalShares).div(balance()),
+                _shares[msg.sender]
+            );
+        if (address(_rubiChef) != address(0)) {
+            _rubiChef.notifyWithdrawn(msg.sender, shares);
         }
 
         totalShares = totalShares.sub(shares);
         _shares[msg.sender] = _shares[msg.sender].sub(shares);
         _principal[msg.sender] = _principal[msg.sender].sub(amount);
 
-        uint depositTimestamp = _depositedAt[msg.sender];
-        uint withdrawalFee = canMint() ? _minter.withdrawalFee(amount, depositTimestamp) : 0;
+        uint256 depositTimestamp = _depositedAt[msg.sender];
+        uint256 withdrawalFee = canMint()
+            ? _minter.withdrawalFee(amount, depositTimestamp)
+            : 0;
         if (withdrawalFee > DUST) {
             venusBridge.withdraw(address(this), withdrawalFee);
             if (address(_stakingToken) == WBNB) {
-                _minter.mintFor{value : withdrawalFee}(address(0), withdrawalFee, 0, msg.sender, depositTimestamp);
+                _minter.mintFor{value: withdrawalFee}(
+                    address(0),
+                    withdrawalFee,
+                    0,
+                    msg.sender,
+                    depositTimestamp
+                );
             } else {
-                _minter.mintFor(address(_stakingToken), withdrawalFee, 0, msg.sender, depositTimestamp);
+                _minter.mintFor(
+                    address(_stakingToken),
+                    withdrawalFee,
+                    0,
+                    msg.sender,
+                    depositTimestamp
+                );
             }
             amount = amount.sub(withdrawalFee);
         }
@@ -499,8 +638,8 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
     function getReward() public override accrueBank nonReentrant {
         updateVenusFactors();
-        uint amount = earned(msg.sender);
-        uint available = balanceAvailable();
+        uint256 amount = earned(msg.sender);
+        uint256 available = balanceAvailable();
         if (available < amount) {
             _decreaseCollateral(_getBufferedAmountMin(amount));
             amount = earned(msg.sender);
@@ -508,14 +647,19 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         }
 
         amount = Math.min(amount, available);
-        if (address(_bunnyChef) != address(0)) {
-            uint bunnyAmount = _bunnyChef.safeRubyTransfer(msg.sender);
-            emit BunnyPaid(msg.sender, bunnyAmount, 0);
+        if (address(_rubiChef) != address(0)) {
+            uint256 rubiAmount = _rubiChef.safeRubiTransfer(msg.sender);
+            emit RubiPaid(msg.sender, rubiAmount, 0);
         }
 
-        uint shares = balance() == 0 ? 0 : Math.min(amount.mul(totalShares).div(balance()), _shares[msg.sender]);
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyWithdrawn(msg.sender, shares);
+        uint256 shares = balance() == 0
+            ? 0
+            : Math.min(
+                amount.mul(totalShares).div(balance()),
+                _shares[msg.sender]
+            );
+        if (address(_rubiChef) != address(0)) {
+            _rubiChef.notifyWithdrawn(msg.sender, shares);
         }
 
         totalShares = totalShares.sub(shares);
@@ -523,21 +667,33 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         // cleanup dust
         if (_shares[msg.sender] > 0 && _shares[msg.sender] < DUST) {
-            if (address(_bunnyChef) != address(0)) {
-                _bunnyChef.notifyWithdrawn(msg.sender, _shares[msg.sender]);
+            if (address(_rubiChef) != address(0)) {
+                _rubiChef.notifyWithdrawn(msg.sender, _shares[msg.sender]);
             }
             totalShares = totalShares.sub(_shares[msg.sender]);
             delete _shares[msg.sender];
         }
 
-        uint depositTimestamp = _depositedAt[msg.sender];
-        uint performanceFee = canMint() ? _minter.performanceFee(amount) : 0;
+        uint256 depositTimestamp = _depositedAt[msg.sender];
+        uint256 performanceFee = canMint() ? _minter.performanceFee(amount) : 0;
         if (performanceFee > DUST) {
             venusBridge.withdraw(address(this), performanceFee);
             if (address(_stakingToken) == WBNB) {
-                _minter.mintFor{value : performanceFee}(address(0), 0, performanceFee, msg.sender, depositTimestamp);
+                _minter.mintFor{value: performanceFee}(
+                    address(0),
+                    0,
+                    performanceFee,
+                    msg.sender,
+                    depositTimestamp
+                );
             } else {
-                _minter.mintFor(address(_stakingToken), 0, performanceFee, msg.sender, depositTimestamp);
+                _minter.mintFor(
+                    address(_stakingToken),
+                    0,
+                    performanceFee,
+                    msg.sender,
+                    depositTimestamp
+                );
             }
             amount = amount.sub(performanceFee);
         }
@@ -557,28 +713,40 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
     /* ========== PRIVATE FUNCTIONS ========== */
 
-    function _hasSufficientBalance(uint amount) private view returns (bool) {
+    function _hasSufficientBalance(uint256 amount) private view returns (bool) {
         return balanceAvailable().add(venusSupply).sub(venusBorrow) >= amount;
     }
 
-    function _getBufferedAmountMin(uint amount) private view returns (uint) {
+    function _getBufferedAmountMin(uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
         return venusExitRatio > 0 ? amount.mul(1005).div(1000) : amount;
     }
 
-    function _getAmountWithExitRatio(uint amount) private view returns (uint) {
-        uint redeemFee = amount.mul(1005).mul(venusExitRatio).div(1000).div(VENUS_EXIT_BASE);
+    function _getAmountWithExitRatio(uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
+        uint256 redeemFee = amount.mul(1005).mul(venusExitRatio).div(1000).div(
+            VENUS_EXIT_BASE
+        );
         return amount.sub(redeemFee);
     }
 
-    function _increaseCollateral(uint compound) private {
+    function _increaseCollateral(uint256 compound) private {
         updateVenusFactors();
-        (uint mintable, uint mintableInUSD) = safeVenus.safeMintAmount(address(this));
+        (uint256 mintable, uint256 mintableInUSD) = safeVenus.safeMintAmount(
+            payable(address(this))
+        );
         if (mintableInUSD > 1e18) {
             venusBridge.mint(mintable);
         }
 
         updateVenusFactors();
-        uint borrowable = safeVenus.safeBorrowAmount(address(this));
+        uint256 borrowable = safeVenus.safeBorrowAmount(payable(address(this)));
         while (!paused && compound > 0 && borrowable > 1) {
             if (borrowable == 0 || collateralRatio >= collateralRatioLimit) {
                 return;
@@ -586,48 +754,75 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
             venusBridge.borrow(borrowable);
             updateVenusFactors();
-            (mintable, mintableInUSD) = safeVenus.safeMintAmount(address(this));
+            (mintable, mintableInUSD) = safeVenus.safeMintAmount(
+                payable(address(this))
+            );
             if (mintableInUSD > 1e18) {
                 venusBridge.mint(mintable);
             }
 
             updateVenusFactors();
-            borrowable = safeVenus.safeBorrowAmount(address(this));
+            borrowable = safeVenus.safeBorrowAmount(payable(address(this)));
             compound--;
         }
     }
 
-    function _decreaseCollateral(uint amountMin) private {
+    function _decreaseCollateral(uint256 amountMin) private {
         updateVenusFactors();
 
-        uint marketSupply = vToken.totalSupply().mul(vToken.exchangeRateCurrent()).div(1e18);
-        uint marketLiquidity = marketSupply > vToken.totalBorrowsCurrent() ? marketSupply.sub(vToken.totalBorrowsCurrent()) : 0;
-        require(marketLiquidity >= amountMin, "VaultVenus: not enough market liquidity");
+        uint256 marketSupply = vToken
+            .totalSupply()
+            .mul(vToken.exchangeRateCurrent())
+            .div(1e18);
+        uint256 marketLiquidity = marketSupply > vToken.totalBorrowsCurrent()
+            ? marketSupply.sub(vToken.totalBorrowsCurrent())
+            : 0;
+        require(
+            marketLiquidity >= amountMin,
+            "VaultVenus: not enough market liquidity"
+        );
 
-        if (amountMin != uint(- 1) && collateralRatio == 0 && collateralRatioLimit == 0) {
+        if (
+            amountMin != uint256(1) &&
+            collateralRatio == 0 &&
+            collateralRatioLimit == 0
+        ) {
             venusBridge.redeemUnderlying(Math.min(venusSupply, amountMin));
             updateVenusFactors();
         } else {
-            uint redeemable = safeVenus.safeRedeemAmount(address(this));
+            uint256 redeemable = safeVenus.safeRedeemAmount(
+                payable(address(this))
+            );
             while (venusBorrow > 0 && redeemable > 0) {
-                uint redeemAmount = amountMin > 0 ? Math.min(venusSupply, Math.min(redeemable, amountMin)) : Math.min(venusSupply, redeemable);
+                uint256 redeemAmount = amountMin > 0
+                    ? Math.min(venusSupply, Math.min(redeemable, amountMin))
+                    : Math.min(venusSupply, redeemable);
                 venusBridge.redeemUnderlying(redeemAmount);
-                venusBridge.repayBorrow(Math.min(venusBorrow, balanceAvailable()));
+                venusBridge.repayBorrow(
+                    Math.min(venusBorrow, balanceAvailable())
+                );
                 updateVenusFactors();
 
-                redeemable = safeVenus.safeRedeemAmount(address(this));
-                uint available = balanceAvailable().add(redeemable);
-                if (collateralRatio <= collateralRatioLimit && available >= amountMin) {
-                    uint remain = amountMin > balanceAvailable() ? amountMin.sub(balanceAvailable()) : 0;
+                redeemable = safeVenus.safeRedeemAmount(payable(address(this)));
+                uint256 available = balanceAvailable().add(redeemable);
+                if (
+                    collateralRatio <= collateralRatioLimit &&
+                    available >= amountMin
+                ) {
+                    uint256 remain = amountMin > balanceAvailable()
+                        ? amountMin.sub(balanceAvailable())
+                        : 0;
                     if (remain > 0) {
-                        venusBridge.redeemUnderlying(Math.min(remain, redeemable));
+                        venusBridge.redeemUnderlying(
+                            Math.min(remain, redeemable)
+                        );
                     }
                     updateVenusFactors();
                     return;
                 }
             }
 
-            if (amountMin == uint(- 1) && venusBorrow == 0) {
+            if (amountMin == uint256(1) && venusBorrow == 0) {
                 venusBridge.redeemAll();
                 updateVenusFactors();
             }
@@ -636,11 +831,20 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
     /* ========== SALVAGE PURPOSE ONLY ========== */
 
-    function recoverToken(address tokenAddress, uint tokenAmount) external override onlyOwner {
-        require(tokenAddress != address(0) && tokenAddress != address(_stakingToken) &&
-        tokenAddress != address(vToken) && tokenAddress != XVS, "VaultVenus: cannot recover token");
+    function recoverToken(address tokenAddress, uint256 tokenAmount)
+        external
+        override
+        onlyOwner
+    {
+        require(
+            tokenAddress != address(0) &&
+                tokenAddress != address(_stakingToken) &&
+                tokenAddress != address(vToken) &&
+                tokenAddress != XVS,
+            "VaultVenus: cannot recover token"
+        );
 
-        IBEP20(tokenAddress).safeTransfer(owner(), tokenAmount);
+        IBEP20(tokenAddress).transfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }
 }

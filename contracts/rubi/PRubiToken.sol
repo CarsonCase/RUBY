@@ -1,17 +1,18 @@
-/*
-   ____            __   __        __   _
-  / __/__ __ ___  / /_ / /  ___  / /_ (_)__ __
- _\ \ / // // _ \/ __// _ \/ -_)/ __// / \ \ /
-/___/ \_, //_//_/\__//_//_/\__/ \__//_/ /_\_\
-     /___/
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
 
-* Docs: https://docs.synthetix.io/
-*
+/*
+  ___                      _   _
+ | _ )_  _ _ _  _ _ _  _  | | | |
+ | _ \ || | ' \| ' \ || | |_| |_|
+ |___/\_,_|_||_|_||_\_, | (_) (_)
+                    |__/
+
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 Synthetix
+* Copyright (c) 2020 BunnyFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -31,39 +32,18 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+import "../library/bep20/BEP20Upgradeable.sol";
 
-import "../../library/bep20/Ownable.sol";
+contract PRubiToken is BEP20Upgradeable {
+    /* ========== INITIALIZER ========== */
 
-abstract contract Pausable is Ownable {
-    uint256 public lastPauseTime;
-    bool public paused;
-
-    event PauseChanged(bool isPaused);
-
-    modifier notPaused() {
-        require(
-            !paused,
-            "This action cannot be performed while the contract is paused"
-        );
-        _;
+    function initialize() external initializer {
+        __BEP20__init("Platinum Rubi Token", "pRUBI", 18);
     }
 
-    constructor() {
-        require(owner() != address(0), "Owner must be set");
-    }
+    /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function setPaused(bool _paused) external onlyOwner {
-        if (_paused == paused) {
-            return;
-        }
-
-        paused = _paused;
-        if (paused) {
-            lastPauseTime = block.timestamp;
-        }
-
-        emit PauseChanged(paused);
+    function mint(uint256 _amount) public onlyOwner {
+        _mint(owner(), _amount);
     }
 }

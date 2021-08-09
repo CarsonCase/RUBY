@@ -35,48 +35,72 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
-import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
+import "../../library/bep20/SafeBEP20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "../../library/RewardsDistributionRecipientUpgradeable.sol";
 import {PoolConstant} from "../../library/PoolConstant.sol";
 
 import "../../interfaces/IStrategy.sol";
 import "../../interfaces/IMasterChef.sol";
-import "../../interfaces/IRubyMinter.sol";
+import "../../interfaces/IRubiMinter.sol";
 
 import "../../vaults/VaultController.sol";
 
-
-contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRecipientUpgradeable, ReentrancyGuardUpgradeable {
-    using SafeMath for uint;
+contract VaultRelayInternal is
+    VaultController,
+    IStrategy,
+    RewardsDistributionRecipientUpgradeable,
+    ReentrancyGuardUpgradeable
+{
+    using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
+
+    event Deposited(address indexed user, uint256 amount);
+    event Withdrawn(
+        address indexed user,
+        uint256 amount,
+        uint256 withdrawalFee
+    );
+    event ProfitPaid(
+        address indexed user,
+        uint256 profit,
+        uint256 performanceFee
+    );
+    event RubiPaid(
+        address indexed user,
+        uint256 profit,
+        uint256 performanceFee
+    );
+    event Harvested(uint256 profit);
 
     /* ========== CONSTANTS ============= */
 
     address private constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
-    IMasterChef private constant CAKE_MASTER_CHEF = IMasterChef(0x73feaa1eE314F8c655E354234017bE2193C9E24E);
-    PoolConstant.PoolTypes public constant override poolType = PoolConstant.PoolTypes.FlipToCake;
+    IMasterChef private constant CAKE_MASTER_CHEF =
+        IMasterChef(0x73feaa1eE314F8c655E354234017bE2193C9E24E);
+    PoolConstant.PoolTypes public constant override poolType =
+        PoolConstant.PoolTypes.FlipToCake;
 
     /* ========== STATE VARIABLES ========== */
 
     IStrategy private _rewardsToken;
 
-    uint public periodFinish;
-    uint public rewardRate;
-    uint public rewardsDuration;
-    uint public lastUpdateTime;
-    uint public rewardPerTokenStored;
+    uint256 public periodFinish;
+    uint256 public rewardRate;
+    uint256 public rewardsDuration;
+    uint256 public lastUpdateTime;
+    uint256 public rewardPerTokenStored;
 
-    mapping(address => uint) public userRewardPerTokenPaid;
-    mapping(address => uint) public rewards;
+    mapping(address => uint256) public userRewardPerTokenPaid;
+    mapping(address => uint256) public rewards;
 
-    uint private _totalSupply;
-    mapping(address => uint) private _balances;
+    uint256 private _totalSupply;
+    mapping(address => uint256) private _balances;
 
-    uint public override pid;
-    mapping (address => uint) private _depositedAt;
+    uint256 public override pid;
+    mapping(address => uint256) private _depositedAt;
 
     address public relayer;
 
@@ -92,25 +116,28 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
         _;
     }
 
-    modifier onlyRelayer {
-        require(relayer != address(0) && msg.sender == relayer, "VaultRelayInternal: call is not the relayer");
+    modifier onlyRelayer() {
+        require(
+            relayer != address(0) && msg.sender == relayer,
+            "VaultRelayInternal: call is not the relayer"
+        );
         _;
     }
 
     /* ========== EVENTS ========== */
 
-    event RewardAdded(uint reward);
-    event RewardsDurationUpdated(uint newDuration);
+    event RewardAdded(uint256 reward);
+    event RewardsDurationUpdated(uint256 newDuration);
 
     /* ========== INITIALIZER ========== */
 
-    function initialize(uint _pid, address _relayer) external initializer {
-        (address _token,,,) = CAKE_MASTER_CHEF.poolInfo(_pid);
+    function initialize(uint256 _pid, address _relayer) external initializer {
+        (address _token, , , ) = CAKE_MASTER_CHEF.poolInfo(_pid);
         __VaultController_init(IBEP20(_token));
         __RewardsDistributionRecipient_init();
         __ReentrancyGuard_init();
 
-        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint(- 1));
+        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint256(1));
         pid = _pid;
 
         rewardsDuration = 4 hours;
@@ -122,31 +149,56 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
 
     /* ========== VIEWS ========== */
 
-    function totalSupply() external view override returns (uint) {
+    function totalSupply() external view override returns (uint256) {
         return _totalSupply;
     }
 
-    function balance() external view override returns (uint) {
+    function balance() external view override returns (uint256) {
         return _totalSupply;
     }
 
-    function balanceOf(address account) external view override returns (uint) {
+    function balanceOf(address account)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _balances[account];
     }
 
-    function sharesOf(address account) external view override returns (uint) {
+    function sharesOf(address account)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _balances[account];
     }
 
-    function principalOf(address account) external view override returns (uint) {
+    function principalOf(address account)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _balances[account];
     }
 
-    function depositedAt(address account) external view override returns (uint) {
+    function depositedAt(address account)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _depositedAt[account];
     }
 
-    function withdrawableBalanceOf(address account) public view override returns (uint) {
+    function withdrawableBalanceOf(address account)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return _balances[account];
     }
 
@@ -154,35 +206,43 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
         return address(_rewardsToken);
     }
 
-    function priceShare() external view override returns(uint) {
+    function priceShare() external view override returns (uint256) {
         return 1e18;
     }
 
-    function lastTimeRewardApplicable() public view returns (uint) {
+    function lastTimeRewardApplicable() public view returns (uint256) {
         return Math.min(block.timestamp, periodFinish);
     }
 
-    function rewardPerToken() public view returns (uint) {
+    function rewardPerToken() public view returns (uint256) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
         }
         return
-        rewardPerTokenStored.add(
-            lastTimeRewardApplicable().sub(lastUpdateTime).mul(rewardRate).mul(1e18).div(_totalSupply)
-        );
+            rewardPerTokenStored.add(
+                lastTimeRewardApplicable()
+                    .sub(lastUpdateTime)
+                    .mul(rewardRate)
+                    .mul(1e18)
+                    .div(_totalSupply)
+            );
     }
 
-    function earned(address account) override public view returns (uint) {
-        return _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(1e18).add(rewards[account]);
+    function earned(address account) public view override returns (uint256) {
+        return
+            _balances[account]
+                .mul(rewardPerToken().sub(userRewardPerTokenPaid[account]))
+                .div(1e18)
+                .add(rewards[account]);
     }
 
-    function getRewardForDuration() external view returns (uint) {
+    function getRewardForDuration() external view returns (uint256) {
         return rewardRate.mul(rewardsDuration);
     }
 
     /* ========== MUTATIVE FUNCTIONS - IStrategy ========== */
 
-    function deposit(uint) public override {
+    function deposit(uint256) public override {
         revert("N/A");
     }
 
@@ -190,7 +250,7 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
         revert("N/A");
     }
 
-    function withdraw(uint) external override {
+    function withdraw(uint256) external override {
         revert("N/A");
     }
 
@@ -204,23 +264,40 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
 
     /* ========== MUTATIVE FUNCTIONS - RelayInternal ========== */
 
-    function deposit(uint amount, address _to) external nonReentrant notPaused updateReward(_to) onlyRelayer {
-        require(amount > 0, "VaultRelayInternal: amount must be greater than zero");
+    function deposit(uint256 amount, address _to)
+        external
+        nonReentrant
+        notPaused
+        updateReward(_to)
+        onlyRelayer
+    {
+        require(
+            amount > 0,
+            "VaultRelayInternal: amount must be greater than zero"
+        );
         _totalSupply = _totalSupply.add(amount);
         _balances[_to] = _balances[_to].add(amount);
         _depositedAt[_to] = block.timestamp;
         _stakingToken.safeTransferFrom(msg.sender, address(this), amount);
-        uint cakeHarvested = _depositStakingToken(amount);
+        uint256 cakeHarvested = _depositStakingToken(amount);
         emit Deposited(_to, amount);
 
         _harvest(cakeHarvested);
     }
 
-    function withdraw(uint amount, address _to) public nonReentrant updateReward(_to) onlyRelayer {
-        require(amount > 0, "VaultRelayInternal: amount must be greater than zero");
+    function withdraw(uint256 amount, address _to)
+        public
+        nonReentrant
+        updateReward(_to)
+        onlyRelayer
+    {
+        require(
+            amount > 0,
+            "VaultRelayInternal: amount must be greater than zero"
+        );
         _totalSupply = _totalSupply.sub(amount);
         _balances[_to] = _balances[_to].sub(amount);
-        uint cakeHarvested = _withdrawStakingToken(amount);
+        uint256 cakeHarvested = _withdrawStakingToken(amount);
 
         _stakingToken.safeTransfer(msg.sender, amount);
         emit Withdrawn(_to, amount, 0);
@@ -228,13 +305,20 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
         _harvest(cakeHarvested);
     }
 
-    function getReward(address _to) public nonReentrant updateReward(_to) onlyRelayer {
-        uint reward = rewards[_to];
+    function getReward(address _to)
+        public
+        nonReentrant
+        updateReward(_to)
+        onlyRelayer
+    {
+        uint256 reward = rewards[_to];
         if (reward > 0) {
             rewards[_to] = 0;
-            uint before = IBEP20(CAKE).balanceOf(address(this));
+            uint256 before = IBEP20(CAKE).balanceOf(address(this));
             _rewardsToken.withdraw(reward);
-            uint cakeBalance = IBEP20(CAKE).balanceOf(address(this)).sub(before);
+            uint256 cakeBalance = IBEP20(CAKE).balanceOf(address(this)).sub(
+                before
+            );
 
             IBEP20(CAKE).safeTransfer(msg.sender, cakeBalance);
             emit ProfitPaid(_to, cakeBalance, 0);
@@ -242,7 +326,7 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
     }
 
     function withdrawAll(address _to) external onlyRelayer {
-        uint _withdraw = withdrawableBalanceOf(_to);
+        uint256 _withdraw = withdrawableBalanceOf(_to);
         if (_withdraw > 0) {
             withdraw(_withdraw, _to);
         }
@@ -250,30 +334,40 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
     }
 
     function harvest() public override {
-        uint cakeHarvested = _withdrawStakingToken(0);
+        uint256 cakeHarvested = _withdrawStakingToken(0);
         _harvest(cakeHarvested);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function setMinter(address) override public onlyOwner {
+    function setMinter(address) public override onlyOwner {
         revert("N/A");
     }
 
     function setRewardsToken(address newRewardsToken) public onlyOwner {
-        require(address(_rewardsToken) == address(0), "VaultRelayInternal: rewards token already set");
+        require(
+            address(_rewardsToken) == address(0),
+            "VaultRelayInternal: rewards token already set"
+        );
 
         _rewardsToken = IStrategy(newRewardsToken);
         IBEP20(CAKE).safeApprove(newRewardsToken, 0);
-        IBEP20(CAKE).safeApprove(newRewardsToken, uint(- 1));
+        IBEP20(CAKE).safeApprove(newRewardsToken, uint256(1));
     }
 
-    function notifyRewardAmount(uint reward) public override onlyRewardsDistribution {
+    function notifyRewardAmount(uint256 reward)
+        public
+        override
+        onlyRewardsDistribution
+    {
         _notifyRewardAmount(reward);
     }
 
-    function setRewardsDuration(uint _rewardsDuration) external onlyOwner {
-        require(periodFinish == 0 || block.timestamp > periodFinish, "VaultRelayInternal: reward duration can only be updated after the period ends");
+    function setRewardsDuration(uint256 _rewardsDuration) external onlyOwner {
+        require(
+            periodFinish == 0 || block.timestamp > periodFinish,
+            "VaultRelayInternal: reward duration can only be updated after the period ends"
+        );
         rewardsDuration = _rewardsDuration;
         emit RewardsDurationUpdated(rewardsDuration);
     }
@@ -284,34 +378,43 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
 
     /* ========== PRIVATE FUNCTIONS ========== */
 
-    function _depositStakingToken(uint amount) private returns (uint cakeHarvested) {
-        uint before = IBEP20(CAKE).balanceOf(address(this));
+    function _depositStakingToken(uint256 amount)
+        private
+        returns (uint256 cakeHarvested)
+    {
+        uint256 before = IBEP20(CAKE).balanceOf(address(this));
         CAKE_MASTER_CHEF.deposit(pid, amount);
         cakeHarvested = IBEP20(CAKE).balanceOf(address(this)).sub(before);
     }
 
-    function _withdrawStakingToken(uint amount) private returns (uint cakeHarvested) {
-        uint before = IBEP20(CAKE).balanceOf(address(this));
+    function _withdrawStakingToken(uint256 amount)
+        private
+        returns (uint256 cakeHarvested)
+    {
+        uint256 before = IBEP20(CAKE).balanceOf(address(this));
         CAKE_MASTER_CHEF.withdraw(pid, amount);
         cakeHarvested = IBEP20(CAKE).balanceOf(address(this)).sub(before);
     }
 
-    function _harvest(uint cakeAmount) private {
-        uint _before = _rewardsToken.sharesOf(address(this));
+    function _harvest(uint256 cakeAmount) private {
+        uint256 _before = _rewardsToken.sharesOf(address(this));
         _rewardsToken.deposit(cakeAmount);
-        uint amount = _rewardsToken.sharesOf(address(this)).sub(_before);
+        uint256 amount = _rewardsToken.sharesOf(address(this)).sub(_before);
         if (amount > 0) {
             _notifyRewardAmount(amount);
             emit Harvested(amount);
         }
     }
 
-    function _notifyRewardAmount(uint reward) private updateReward(address(0)) {
+    function _notifyRewardAmount(uint256 reward)
+        private
+        updateReward(address(0))
+    {
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(rewardsDuration);
         } else {
-            uint remaining = periodFinish.sub(block.timestamp);
-            uint leftover = remaining.mul(rewardRate);
+            uint256 remaining = periodFinish.sub(block.timestamp);
+            uint256 leftover = remaining.mul(rewardRate);
             rewardRate = reward.add(leftover).div(rewardsDuration);
         }
 
@@ -319,8 +422,11 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
         // This keeps the reward rate in the right range, preventing overflows due to
         // very high values of rewardRate in the earned and rewardsPerToken functions;
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-        uint _balance = _rewardsToken.sharesOf(address(this));
-        require(rewardRate <= _balance.div(rewardsDuration), "VaultRelayInternal: reward rate must be in the right range");
+        uint256 _balance = _rewardsToken.sharesOf(address(this));
+        require(
+            rewardRate <= _balance.div(rewardsDuration),
+            "VaultRelayInternal: reward rate must be in the right range"
+        );
 
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
@@ -329,14 +435,25 @@ contract VaultRelayInternal is VaultController, IStrategy, RewardsDistributionRe
 
     /* ========== SALVAGE PURPOSE ONLY ========== */
 
-    function recoverToken(address tokenAddress, uint tokenAmount) external override onlyOwner {
-        require(tokenAddress != address(_stakingToken) && tokenAddress != _rewardsToken.stakingToken(), "VaultRelayInternal: cannot recover underlying token");
+    function recoverToken(address tokenAddress, uint256 tokenAmount)
+        external
+        override
+        onlyOwner
+    {
+        require(
+            tokenAddress != address(_stakingToken) &&
+                tokenAddress != _rewardsToken.stakingToken(),
+            "VaultRelayInternal: cannot recover underlying token"
+        );
         IBEP20(tokenAddress).safeTransfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }
 
     /// dev: TODO Will be removed after beta test (beta test only)
-    function recoverForBetaTest(address tokenAddress, uint tokenAmount) external onlyOwner {
+    function recoverForBetaTest(address tokenAddress, uint256 tokenAmount)
+        external
+        onlyOwner
+    {
         IBEP20(tokenAddress).safeTransfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }

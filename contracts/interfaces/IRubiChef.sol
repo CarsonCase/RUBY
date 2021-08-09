@@ -33,30 +33,44 @@ pragma experimental ABIEncoderV2;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-interface IVaultCollateral {
-    function WITHDRAWAL_FEE_PERIOD() external view returns (uint256);
+interface IRubiChef {
+    struct UserInfo {
+        uint256 balance;
+        uint256 pending;
+        uint256 rewardPaid;
+    }
 
-    function WITHDRAWAL_FEE_UNIT() external view returns (uint256);
+    struct VaultInfo {
+        address token;
+        uint256 allocPoint; // How many allocation points assigned to this pool. RUBIs to distribute per block.
+        uint256 lastRewardBlock; // Last block number that RUBIs distribution occurs.
+        uint256 accRubiPerShare; // Accumulated RUBIs per share, times 1e12. See below.
+    }
 
-    function WITHDRAWAL_FEE() external view returns (uint256);
+    function rubyPerBlock() external view returns (uint256);
 
-    function stakingToken() external view returns (address);
+    function totalAllocPoint() external view returns (uint256);
 
-    function collateralValueMin() external view returns (uint256);
+    function vaultInfoOf(address vault)
+        external
+        view
+        returns (VaultInfo memory);
 
-    function balance() external view returns (uint256);
+    function vaultUserInfoOf(address vault, address user)
+        external
+        view
+        returns (UserInfo memory);
 
-    function availableOf(address account) external view returns (uint256);
+    function pendingRubi(address vault, address user)
+        external
+        view
+        returns (uint256);
 
-    function collateralOf(address account) external view returns (uint256);
+    function notifyDeposited(address user, uint256 amount) external;
 
-    function realizedInETH(address account) external view returns (uint256);
+    function notifyWithdrawn(address user, uint256 amount) external;
 
-    function depositedAt(address account) external view returns (uint256);
+    function safeRubiTransfer(address user) external returns (uint256);
 
-    function addCollateral(uint256 amount) external;
-
-    function addCollateralETH() external payable;
-
-    function removeCollateral() external;
+    function updateRewardsOf(address vault) external;
 }

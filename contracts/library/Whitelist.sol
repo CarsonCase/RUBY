@@ -32,19 +32,21 @@ pragma solidity ^0.8.4;
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 */
 
-import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
-
+import "../library/bep20/Ownable.sol";
 
 contract Whitelist is Ownable {
     mapping(address => bool) private _whitelist;
-    bool private _disable;                      // default - false means whitelist feature is working on. if true no more use of whitelist
+    bool private _disable; // default - false means whitelist feature is working on. if true no more use of whitelist
 
     event Whitelisted(address indexed _address, bool whitelist);
     event EnableWhitelist();
     event DisableWhitelist();
 
-    modifier onlyWhitelisted {
-        require(_disable || _whitelist[msg.sender], "Whitelist: caller is not on the whitelist");
+    modifier onlyWhitelisted() {
+        require(
+            _disable || _whitelist[msg.sender],
+            "Whitelist: caller is not on the whitelist"
+        );
         _;
     }
 
