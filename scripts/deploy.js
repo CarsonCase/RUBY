@@ -15,39 +15,39 @@ async function main() {
 
   // We get the contract to deploy
 
-  // BUNNY
-  const Bunny = await hre.ethers.getContractFactory("BunnyToken");
-  const bunny = await Bunny.deploy();
+  // RUBI
+  const Rubi = await hre.ethers.getContractFactory("RubiToken");
+  const rubi = await Rubi.deploy();
+console.log('here')
+  await rubi.deployed();
 
-  await bunny.deployed();
+  console.log("Rubi token deployed to:", rubi.address);
 
-  console.log("Bunny token deployed to:", bunny.address);
+  // RUBI POOL
+  const RubiPool = await hre.ethers.getContractFactory("RubiPool");
+  const rubiPool = await RubiPool.deploy(rubi.address);
 
-  // BUNNY POOL
-  const BunnyPool = await hre.ethers.getContractFactory("BunnyPool");
-  const bunnyPool = await BunnyPool.deploy(bunny.address);
+  await rubiPool.deployed();
 
-  await bunnyPool.deployed();
-
-  console.log("Bunny pool deployed to:", bunnyPool.address);
+  console.log("Rubi pool deployed to:", rubiPool.address);
   
-  // BUNNY MINTER
-  const BunnyMinter = await hre.ethers.getContractFactory("BunnyMinterV2");
-  const bunnyMinter = await BunnyMinter.deploy(bunny.address,bunnyPool.address);
+  // RUBI MINTER
+  const RubiMinter = await hre.ethers.getContractFactory("RubiMinterV2");
+  const rubiMinter = await RubiMinter.deploy(rubi.address,rubiPool.address);
 
-  await bunnyMinter.deployed();
+  await rubiMinter.deployed();
 
-  console.log("Bunny pool deployed to:", bunnyMinter.address);
+  console.log("Rubi pool deployed to:", rubiMinter.address);
   
-  //BUNNY FLIP-FLIP
+  //RUBI FLIP-FLIP
   const Flip = await hre.ethers.getContractFactory("VaultFlipToFlip");
-  const flip = await BunnyMinter.deploy();
+  const flip = await RubiMinter.deploy();
 
   await flip.deployed();
 
-  console.log("Bunny pool deployed to:", flip.address);
+  console.log("Rubi pool deployed to:", flip.address);
 
-  //Bunny bnb requres the Lp token
+  //Rubi bnb requres the Lp token
   //But can be deployed as is
   
 

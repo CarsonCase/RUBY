@@ -1,10 +1,10 @@
 {
-  "name": "ruby",
+  "name": "rubi",
   "version": "1.0.0",
   "private": true,
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
-    "compile": "npx oz compile --solc-version 0.8.4 --evm-version istanbul" ,
+    "compile": "npx hardhat compile",
     "test": "mocha --exit --recursive"
   },
   "files": [
