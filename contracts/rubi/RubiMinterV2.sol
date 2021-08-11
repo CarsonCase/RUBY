@@ -43,7 +43,7 @@ import "../interfaces/IPriceCalculator.sol";
 import "../zap/ZapBSC.sol";
 import "../library/SafeToken.sol";
 
-abstract contract RubiMinterV2 is IRubiMinterV2, OwnableUpgradeable {
+contract RubiMinterV2 is IRubiMinterV2, OwnableUpgradeable {
     using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
 

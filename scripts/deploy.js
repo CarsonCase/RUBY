@@ -37,15 +37,15 @@ console.log('here')
 
   await rubiMinter.deployed();
 
-  console.log("Rubi pool deployed to:", rubiMinter.address);
+  console.log("Rubi minter deployed to:", rubiMinter.address);
   
   //RUBI FLIP-FLIP
   const Flip = await hre.ethers.getContractFactory("VaultFlipToFlip");
-  const flip = await RubiMinter.deploy();
+  const flip = await Flip.deploy();
 
   await flip.deployed();
 
-  console.log("Rubi pool deployed to:", flip.address);
+  console.log("Rubi flip-flip deployed to:", flip.address);
 
   //Rubi bnb requres the Lp token
   //But can be deployed as is
