@@ -147,6 +147,14 @@ contract RubiMinterV2 is IRubiMinterV2, OwnableUpgradeable {
         WITHDRAWAL_FEE_FREE_PERIOD = _period;
     }
 
+    function getWithdrawalFeeFreePeriod()
+        external
+        view
+        returns (uint256 _period)
+    {
+        return WITHDRAWAL_FEE_FREE_PERIOD;
+    }
+
     function setMinter(address minter, bool canMint)
         external
         override

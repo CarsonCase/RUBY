@@ -18,7 +18,7 @@ async function main() {
   // RUBI
   const Rubi = await hre.ethers.getContractFactory("RubiToken");
   const rubi = await Rubi.deploy();
-console.log('here')
+
   await rubi.deployed();
 
   console.log("Rubi token deployed to:", rubi.address);
