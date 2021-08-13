@@ -70,42 +70,37 @@ async function main() {
 
   // deploy the contract where you can get rewards
   const vaultFlipToCake = await VaultFlipToCake.deploy();
+  await vaultFlipToCake.deployed()
 
   console.log("VaultFlipToCake deployed to:", vaultFlipToCake.address);
 
   // create a contract instance 
   const vaultFlipToCakeContract = await ethers.getContractAt('VaultFlipToCake', vaultFlipToCake.address)
-  
-  // initialize the contract with variables, it must be called one time when you deploy the application
-  await vaultFlipToCake.initialize(0, rubi.address); // depends on Master Chef Contracts - i did not change nothing, so you can go ahead
 
-  // deposit 1000 Rubi to the vault - reward RUBI stakers
-  await vaultFlipToCakeContract.deposit(1000)
+  const getRewardFlipToCakeTx = await vaultFlipToCakeContract.withdrawAll()
 
   // can be founded on this method, where the user call and get the rewards  
-  console.log('withdrawl', await vaultFlipToCakeContract.getReward())
+  console.log('withdrawl Rubi to:', getRewardFlipToCakeTx.from); // transaction sender
+  console.log('withdrawl Rubi from:', getRewardFlipToCakeTx.to); // transaction vault
 
 
 
-  const VaultRubiBNB = await hre.ethers.getContractFactory("VaultRubiBNB");
+  const VaultFlipToFlip = await hre.ethers.getContractFactory("VaultFlipToFlip");
 
   // deploy the contract where you can get rewards
-  const vaultRubiBNB = await VaultRubiBNB.deploy();
+  const vaultFlipToFlip = await VaultFlipToFlip.deploy();
+  await vaultFlipToFlip.deployed()
 
-  console.log("VaultRubiBNB deployed to:", vaultFlipToCake.address);
+  console.log("VaultFlipToFlip deployed to:", vaultFlipToFlip.address);
 
   // create a contract instance 
-  const vaultRubiBNBContract = await ethers.getContractAt('VaultRubiBNB', vaultRubiBNB.address)
-  
-  // initialize the valt rubi BNB with variables, it must be called one time when you deploy the application
-  await vaultRubiBNB.initialize(0, rubi.address); // depends on Master Chef Contracts - i did not change nothing, so you can go ahead
+  const vaultFlipToFlipContract = await ethers.getContractAt('VaultFlipToCake', vaultFlipToCake.address)
 
-  // deposit 1000 tokens to the vault - reward token stakers
-  await vaultRubiBNBContract.deposit(1000)
+  const getRewardFlipToFlipx = await vaultFlipToFlipContract.withdrawAll()
 
   // can be founded on this method, where the user call and get the rewards  
-  console.log('withdrawl', await vaultRubiBNBContract.getReward())
-
+  console.log('withdrawl RubiBNB to:', getRewardFlipToFlipx.from); // transaction sender
+  console.log('withdrawl RubiBNB from:', getRewardFlipToFlipx.to); // transaction vault
   
 }
 
