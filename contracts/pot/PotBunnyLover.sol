@@ -136,9 +136,9 @@ contract PotBunnyLover is VaultController, PotController {
     function initialize() external initializer {
         __VaultController_init(BUNNY);
 
-        _stakingToken.safeApprove(address(ZapBSC), uint256(1));
-        WBNB.safeApprove(address(ZapBSC), uint256(1));
-        _stakingToken.safeApprove(address(BUNNYPool), uint256(1));
+        _stakingToken.safeApprove(address(ZapBSC), uint256(-1));
+        WBNB.safeApprove(address(ZapBSC), uint256(-1));
+        _stakingToken.safeApprove(address(BUNNYPool), uint256(-1));
 
         burnRatio = 10;
         state = PotConstant.PotState.Cooked;

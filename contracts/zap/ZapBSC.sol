@@ -191,7 +191,7 @@ contract ZapBSC is IZap, OwnableUpgradeable {
 
     function _approveTokenIfNeeded(address token) private {
         if (IBEP20(token).allowance(address(this), address(ROUTER)) == 0) {
-            IBEP20(token).safeApprove(address(ROUTER), uint256(1));
+            IBEP20(token).safeApprove(address(ROUTER), uint256(-1));
         }
     }
 
@@ -456,6 +456,6 @@ contract ZapBSC is IZap, OwnableUpgradeable {
     function setSafeSwapBNB(address _safeSwapBNB) external onlyOwner {
         require(safeSwapBNB == address(0), "Zap: safeSwapBNB already set!");
         safeSwapBNB = _safeSwapBNB;
-        IBEP20(WBNB).approve(_safeSwapBNB, uint256(1));
+        IBEP20(WBNB).approve(_safeSwapBNB, uint256(-1));
     }
 }

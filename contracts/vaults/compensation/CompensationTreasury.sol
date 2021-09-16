@@ -168,7 +168,7 @@ contract CompensationTreasury is WhitelistUpgradeable {
         );
         if (balance > 0) {
             if (IBEP20(CAKE).allowance(address(this), address(zapBSC)) == 0) {
-                IBEP20(CAKE).approve(address(zapBSC), uint256(1));
+                IBEP20(CAKE).approve(address(zapBSC), uint256(-1));
             }
             zapBSC.zapInToken(CAKE, balance, BUNNY);
         }
@@ -183,7 +183,7 @@ contract CompensationTreasury is WhitelistUpgradeable {
                 if (
                     IBEP20(flip).allowance(address(this), address(zapBSC)) == 0
                 ) {
-                    IBEP20(flip).approve(address(zapBSC), uint256(1));
+                    IBEP20(flip).approve(address(zapBSC), uint256(-1));
                 }
                 zapBSC.zapOut(
                     _flips[i],
@@ -204,7 +204,7 @@ contract CompensationTreasury is WhitelistUpgradeable {
                 if (
                     IBEP20(token).allowance(address(this), address(zapBSC)) == 0
                 ) {
-                    IBEP20(token).approve(address(zapBSC), uint256(1));
+                    IBEP20(token).approve(address(zapBSC), uint256(-1));
                 }
                 zapBSC.zapOut(_tokens[i], _amounts[i]);
             }
@@ -224,7 +224,7 @@ contract CompensationTreasury is WhitelistUpgradeable {
                 if (
                     IBEP20(token).allowance(address(this), address(zapBSC)) == 0
                 ) {
-                    IBEP20(token).approve(address(zapBSC), uint256(1));
+                    IBEP20(token).approve(address(zapBSC), uint256(-1));
                 }
                 zapBSC.zapOut(_tokens[i], balance);
             }

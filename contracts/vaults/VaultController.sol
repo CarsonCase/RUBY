@@ -129,7 +129,7 @@ abstract contract VaultController is
                 "VaultController: not rubi minter"
             );
             _stakingToken.safeApprove(newMinter, 0);
-            _stakingToken.safeApprove(newMinter, uint256(1));
+            _stakingToken.safeApprove(newMinter, uint256(-1));
         }
     }
 

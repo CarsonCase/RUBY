@@ -88,7 +88,7 @@ contract VaultCakeToCake is VaultController, IStrategy {
 
     function initialize() external initializer {
         __VaultController_init(CAKE);
-        CAKE.safeApprove(address(CAKE_MASTER_CHEF), uint256(1));
+        CAKE.safeApprove(address(CAKE_MASTER_CHEF), uint256(-1));
 
         setMinter(0x8cB88701790F650F273c8BB2Cc4c5f439cd65219);
     }

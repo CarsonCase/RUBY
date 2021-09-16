@@ -105,7 +105,7 @@ contract VaultRelayer is WhitelistUpgradeable {
         __WhitelistUpgradeable_init();
 
         if (IBEP20(CAKE).allowance(address(this), address(zapBSC)) == 0) {
-            IBEP20(CAKE).safeApprove(address(zapBSC), uint256(1));
+            IBEP20(CAKE).safeApprove(address(zapBSC), uint256(-1));
         }
     }
 
@@ -324,7 +324,7 @@ contract VaultRelayer is WhitelistUpgradeable {
         );
 
         if (IBEP20(flip).allowance(address(this), pool) == 0) {
-            IBEP20(flip).safeApprove(pool, uint256(1));
+            IBEP20(flip).safeApprove(pool, uint256(-1));
         }
 
         vault.deposit(flipAmount, account);
@@ -407,7 +407,7 @@ contract VaultRelayer is WhitelistUpgradeable {
 
     function _approveIfNeeded(address token) private {
         if (IBEP20(token).allowance(address(this), address(zapBSC)) == 0) {
-            IBEP20(token).safeApprove(address(zapBSC), uint256(1));
+            IBEP20(token).safeApprove(address(zapBSC), uint256(-1));
         }
     }
 

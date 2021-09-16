@@ -783,7 +783,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         );
 
         if (
-            amountMin != uint256(1) &&
+            amountMin != uint256(-1) &&
             collateralRatio == 0 &&
             collateralRatioLimit == 0
         ) {
@@ -822,7 +822,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
                 }
             }
 
-            if (amountMin == uint256(1) && venusBorrow == 0) {
+            if (amountMin == uint256(-1) && venusBorrow == 0) {
                 venusBridge.redeemAll();
                 updateVenusFactors();
             }

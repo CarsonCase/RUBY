@@ -97,7 +97,7 @@ contract BankBridge is IBankBridge, PausableUpgradeable, WhitelistUpgradeable {
     }
 
     function approveETH() external onlyOwner {
-        IBEP20(ETH).approve(address(ROUTER), uint256(1));
+        IBEP20(ETH).approve(address(ROUTER), uint256(-1));
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -168,7 +168,7 @@ contract BankBridge is IBankBridge, PausableUpgradeable, WhitelistUpgradeable {
 
     function bridgeETH(address to, uint256 amount) external onlyWhitelisted {
         if (IBEP20(ETH).allowance(address(this), address(to)) == 0) {
-            IBEP20(ETH).safeApprove(address(to), uint256(1));
+            IBEP20(ETH).safeApprove(address(to), uint256(-1));
         }
         IBEP20(ETH).safeTransfer(to, amount);
     }

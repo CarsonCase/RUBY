@@ -123,7 +123,7 @@ contract RubiMinterV2 is IRubiMinterV2, OwnableUpgradeable {
         _deprecated_rubyPerProfitBNB = 5e18;
         _deprecated_rubyPerRubiBNBFlip = 6e18;
 
-        IBEP20(RUBI).approve(RUBI_POOL, uint256(1));
+        IBEP20(RUBI).approve(RUBI_POOL, uint256(-1));
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
@@ -375,7 +375,7 @@ contract RubiMinterV2 is IRubiMinterV2, OwnableUpgradeable {
             keccak256("Cake-LP")
         ) {
             if (IBEP20(asset).allowance(address(this), address(router)) == 0) {
-                IBEP20(asset).safeApprove(address(router), uint256(1));
+                IBEP20(asset).safeApprove(address(router), uint256(-1));
             }
 
             IPancakePair pair = IPancakePair(asset);
@@ -399,10 +399,10 @@ contract RubiMinterV2 is IRubiMinterV2, OwnableUpgradeable {
                 );
 
             if (IBEP20(token0).allowance(address(this), address(zap)) == 0) {
-                IBEP20(token0).safeApprove(address(zap), uint256(1));
+                IBEP20(token0).safeApprove(address(zap), uint256(-1));
             }
             if (IBEP20(token1).allowance(address(this), address(zap)) == 0) {
-                IBEP20(token1).safeApprove(address(zap), uint256(1));
+                IBEP20(token1).safeApprove(address(zap), uint256(-1));
             }
 
             if (token0 != RUBI) {
@@ -414,7 +414,7 @@ contract RubiMinterV2 is IRubiMinterV2, OwnableUpgradeable {
             }
         } else {
             if (IBEP20(asset).allowance(address(this), address(zap)) == 0) {
-                IBEP20(asset).safeApprove(address(zap), uint256(1));
+                IBEP20(asset).safeApprove(address(zap), uint256(-1));
             }
 
             zap.zapInToken(asset, amount, RUBI);

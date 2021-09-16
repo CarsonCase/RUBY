@@ -125,7 +125,7 @@ contract VaultCollateral is
         stakingToken = _token;
         collateralValueMin = 100e18;
 
-        _token.safeApprove(address(zap), uint256(1));
+        _token.safeApprove(address(zap), uint256(-1));
         if (
             keccak256(abi.encodePacked(IUniswapV2Pair(_token).symbol())) ==
             keccak256("UNI-V2")
@@ -133,7 +133,7 @@ contract VaultCollateral is
             address token0 = IUniswapV2Pair(_token).token0();
             address token1 = IUniswapV2Pair(_token).token1();
             pairToken = token0 == WETH ? token1 : token0;
-            pairToken.safeApprove(address(zap), uint256(1));
+            pairToken.safeApprove(address(zap), uint256(-1));
         }
     }
 

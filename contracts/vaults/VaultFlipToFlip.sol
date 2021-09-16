@@ -111,10 +111,10 @@ contract VaultFlipToFlip is VaultController, IStrategy {
     function initialize(uint256 _pid, address _token) external initializer {
         __VaultController_init(IBEP20(_token));
 
-        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint256(1));
+        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint256(-1));
         pid = _pid;
 
-        CAKE.safeApprove(address(zapBSC), uint256(1));
+        CAKE.safeApprove(address(zapBSC), uint256(-1));
     }
 
     /* ========== VIEW FUNCTIONS ========== */

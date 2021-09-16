@@ -174,7 +174,7 @@ contract ZapETH is IZap, OwnableUpgradeable {
 
     function _approveTokenIfNeeded(address token) private {
         if (IERC20(token).allowance(address(this), address(ROUTER)) == 0) {
-            IERC20(token).safeApprove(address(ROUTER), uint256(1));
+            IERC20(token).safeApprove(address(ROUTER), uint256(-1));
         }
     }
 

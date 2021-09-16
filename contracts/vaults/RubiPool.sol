@@ -70,7 +70,7 @@ contract RubiPool is
 
         IBEP20(_stakingToken).safeApprove(
             address(ROUTER_V1_DEPRECATED),
-            uint256(1)
+            uint256(-1)
         );
     }
 
@@ -338,7 +338,7 @@ contract RubiPool is
         rewardsToken = IBEP20(_rewardsToken);
         IBEP20(_rewardsToken).safeApprove(
             address(ROUTER_V1_DEPRECATED),
-            uint256(1)
+            uint256(-1)
         );
     }
 

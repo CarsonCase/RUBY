@@ -126,7 +126,7 @@ contract VaultFlipToCake is
         __RewardsDistributionRecipient_init();
         __ReentrancyGuard_init();
 
-        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint256(1));
+        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint256(-1));
         pid = _pid;
 
         rewardsDuration = 4 hours;
@@ -324,7 +324,7 @@ contract VaultFlipToCake is
         VaultController.setMinter(newMinter);
         if (newMinter != address(0)) {
             IBEP20(CAKE).safeApprove(newMinter, 0);
-            IBEP20(CAKE).safeApprove(newMinter, uint256(1));
+            IBEP20(CAKE).safeApprove(newMinter, uint256(-1));
         }
     }
 
@@ -336,7 +336,7 @@ contract VaultFlipToCake is
 
         _rewardsToken = IStrategy(newRewardsToken);
         IBEP20(CAKE).safeApprove(newRewardsToken, 0);
-        IBEP20(CAKE).safeApprove(newRewardsToken, uint256(1));
+        IBEP20(CAKE).safeApprove(newRewardsToken, uint256(-1));
     }
 
     function notifyRewardAmount(uint256 reward)

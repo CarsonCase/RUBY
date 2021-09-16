@@ -64,7 +64,7 @@ contract VaultVenusBridgeOwner is WhitelistUpgradeable {
 
     function initialize() external initializer {
         __WhitelistUpgradeable_init();
-        XVS.safeApprove(address(PANCAKE_ROUTER), uint256(1));
+        XVS.safeApprove(address(PANCAKE_ROUTER), uint256(-1));
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */

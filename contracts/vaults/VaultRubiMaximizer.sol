@@ -104,8 +104,8 @@ contract VaultRubiMaximizer is
         __VaultController_init(IBEP20(RUBI));
         __ReentrancyGuard_init();
 
-        _stakingToken.approve(RUBI_POOL, uint256(1));
-        IBEP20(WBNB).approve(address(zap), uint256(1));
+        _stakingToken.approve(RUBI_POOL, uint256(-1));
+        IBEP20(WBNB).approve(address(zap), uint256(-1));
         setMinter(0x8cB88701790F650F273c8BB2Cc4c5f439cd65219);
     }
 

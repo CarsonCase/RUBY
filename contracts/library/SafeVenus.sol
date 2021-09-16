@@ -125,7 +125,7 @@ contract SafeVenus is OwnableUpgradeable {
             ? accountBorrow.sub(supplyFactor).mul(1e18).div(
                 uint256(1e18).sub(collateralRatioLimit)
             )
-            : uint256(1);
+            : uint256(-1);
         return (
             Math.min(borrowAmount, safeLiquidity),
             Math.min(redeemAmount, safeLiquidity)
@@ -214,7 +214,7 @@ contract SafeVenus is OwnableUpgradeable {
             ? accountBorrow.sub(supplyFactor).mul(1e18).div(
                 uint256(1e18).sub(collateralRatioLimit)
             )
-            : uint256(1);
+            : uint256(-1);
         return Math.min(redeemAmount, safeLiquidity);
     }
 

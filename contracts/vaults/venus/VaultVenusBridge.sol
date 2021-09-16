@@ -71,7 +71,7 @@ contract VaultVenusBridge is Whitelist, Exponential, IVaultVenusBridge {
     receive() external payable {}
 
     constructor() public {
-        XVS.safeApprove(address(PANCAKE_ROUTER), uint256(1));
+        XVS.safeApprove(address(PANCAKE_ROUTER), uint256(-1));
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -109,8 +109,8 @@ contract VaultVenusBridge is Whitelist, Exponential, IVaultVenusBridge {
         _marketList.push(market);
         markets[vault] = market;
 
-        IBEP20(token).safeApprove(address(PANCAKE_ROUTER), uint256(1));
-        IBEP20(token).safeApprove(vToken, uint256(1));
+        IBEP20(token).safeApprove(address(PANCAKE_ROUTER), uint256(-1));
+        IBEP20(token).safeApprove(vToken, uint256(-1));
 
         address[] memory venusMarkets = new address[](1);
         venusMarkets[0] = vToken;
@@ -132,7 +132,7 @@ contract VaultVenusBridge is Whitelist, Exponential, IVaultVenusBridge {
             );
         } else {
             IBEP20 token = IBEP20(market.token);
-            token.safeApprove(address(newBridge), uint256(1));
+            token.safeApprove(address(newBridge), uint256(-1));
             token.safeTransfer(address(newBridge), market.available);
             token.safeApprove(address(newBridge), 0);
             newBridge.deposit(msg.sender, market.available);
